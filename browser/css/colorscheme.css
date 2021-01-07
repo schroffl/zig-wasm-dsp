@@ -1,0 +1,80 @@
+body, .media-controls, .slider .progress-bar {
+    transition-property: background-color color stroke fill;
+    transition-duration: 100ms;
+    transition-timing-function: ease;
+}
+
+/**
+ * Light mode
+ */
+body {
+    background-color: white;
+    color: black;
+}
+
+body button svg.feather {
+    stroke: black;
+}
+
+body .media-controls {
+    background-color: white;
+    color: black;
+}
+
+body .slider .progress-bar {
+    background-color: #eee;
+}
+
+/**
+ * Dark mode
+ */
+@media (prefers-color-scheme: dark) {
+    body:not(.light-mode) {
+        background-color: black;
+        color: #f6f6f6;
+    }
+
+    body:not(.light-mode) .media-controls {
+        background-color: #333;
+    }
+
+    body:not(.light-mode) button svg.feather {
+        stroke: #f6f6f6;
+    }
+
+    body:not(.light-mode) .slider .progress-bar {
+        background-color: gray;
+    }
+}
+
+body.dark-mode {
+    background-color: black;
+    color: white;
+}
+
+body.dark-mode .media-controls {
+    background-color: #333;
+    color: white;
+}
+
+body.dark-mode button svg.feather {
+    stroke: white;
+}
+
+body.dark-mode .slider .progress-bar {
+    background-color: gray;
+}
+
+body #light_toggle_button .when-dark {
+    display: none;
+}
+body #light_toggle_button .when-light {
+    display: block;
+}
+
+body.dark-mode #light_toggle_button .when-dark {
+    display: block;
+}
+body.dark-mode #light_toggle_button .when-light {
+    display: none;
+}

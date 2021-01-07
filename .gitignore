@@ -1,0 +1,4 @@
+.DS_Store
+.tasks
+zig-cache
+tags

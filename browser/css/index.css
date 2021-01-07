@@ -1,0 +1,292 @@
+* {
+    box-sizing: border-box;
+}
+
+.no-touch-action {
+    touch-action: none;
+}
+
+noscript {
+    display: block;
+    border: 1px solid #da351a;
+    border-radius: 8px;
+    text-align: center;
+    padding: 8px;
+}
+
+.knob {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+
+    padding: 8px;
+    overflow: hidden;
+}
+.knob.labels-left {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+.knob .labels {
+    margin-left: 16px;
+}
+.knob.labels-left .labels {
+    margin-left: 0px;
+    margin-right: 16px;
+}
+
+.knob span {
+    display: block;
+    font-family: monospace;
+    padding: 2px;
+    word-break: break-word;
+    width: 100%;
+    white-space: pre;
+}
+
+.knob .indicator {
+    position: relative;
+    width: 50px;
+    height: 50px;
+    background-color: #9244e8;
+    overflow: hidden;
+    border-radius: 50%;
+
+    cursor: grab;
+    user-select: none;
+
+    box-shadow: 0px 0px 5px black;
+    box-sizing: border-box;
+    border: 1px solid rgba(0, 0, 0, .25);
+}
+
+.knob .indicator:before {
+    content: '';
+
+    position: absolute;
+    width: 2px;
+    background-color: white;
+    left: calc(50% - 1px);
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+    top: 0px;
+    bottom: calc(50%);
+}
+
+.knob:focus {
+    outline: none;
+}
+.knob:focus .indicator {
+    border-color: orange;
+    border-width: 3px;
+}
+
+body {
+    font-family: monospace;
+    margin: 0px;
+    padding: 0px;
+    height: 100%;
+}
+
+.is-adjusting-knob {
+    cursor: grabbing;
+}
+.is-adjusting-knob .knob .indicator {
+    cursor: unset;
+}
+
+main {
+    position: relative;
+
+    width: 100%;
+    height: 100vh;
+
+    background-color: inherit;
+
+    display: flex;
+    justify-content: stretch;
+    align-items: stretch;
+}
+
+main canvas {
+    width: 100%;
+}
+
+main .ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.media-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    transition: margin-bottom 200ms ease;
+    box-shadow: 0px 0px 5px black;
+    pointer-events: all;
+
+    background-color: white;
+}
+
+.media-buttons {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    padding: 16px;
+}
+
+.ui-layer .knob {
+    pointer-events: all;
+}
+
+main .ui-layer.hidden .media-controls {
+    margin-bottom: -300px;
+}
+
+.media-buttons > * {
+    margin-right: 16px;
+}
+.media-buttons *:last-child {
+    margin-right: 0px;
+}
+
+.media-controls button {
+    border: none;
+    width: 30px;
+    cursor: pointer;
+    border: none;
+    background-color: transparent;
+    border-radius: 5px;
+    overflow: hidden;
+    outline-color: #9244e8;
+}
+
+.media-controls button svg {
+    width: 18px;
+    height: 100%;
+}
+
+#play_button .when-playing {
+    display: block;
+}
+#play_button .when-paused {
+    display: none;
+}
+
+#play_button.playing .when-playing {
+    display: none;
+}
+#play_button.playing .when-paused {
+    display: block;
+}
+
+#time_progress {
+    align-self: center;
+    margin-right: auto;
+}
+
+.slider {
+    display: block;
+}
+
+.slider .progress-bar {
+    position: relative;
+    width: 100%;
+    height: 5px;
+    cursor: pointer;
+}
+
+.slider .progress-indicator {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    background-color: #9244e8;
+}
+
+.slider .slider-handle {
+    position: absolute;
+    height: 0px;
+    width: 0px;
+    cursor: pointer;
+}
+
+.slider .slider-handle:before {
+    content: '';
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    background-color: #c692ff;
+
+    border-radius: 50%;
+
+    top: -5px;
+    left: -7.5px;
+}
+
+.ui-layer .left-side {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    top: 0;
+
+    display: flex;
+    flex-direction: column;
+    transition: margin-left 200ms ease;
+}
+
+.ui-layer.hidden .left-side {
+    margin-left: -300px;
+}
+
+.ui-layer .right-side {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    top: 0;
+
+    display: flex;
+    flex-direction: column;
+    transition: margin-right 200ms ease;
+}
+
+.ui-layer.hidden .right-side {
+    margin-right: -300px;
+}
+
+#record_button span {
+    display: none;
+    color: white;
+    padding: 0px 8px;
+}
+
+#record_button.is-recording {
+    display: flex;
+    width: auto;
+    flex-direction: row-reverse;
+    padding: 0px;
+    align-items: center;
+    border: 1px solid red;
+    border-radius: 15px;
+    background-color: #ff9393;
+}
+
+#record_button.is-recording svg {
+    fill: red;
+    stroke: red;
+    margin-right: 2px;
+}
+
+#record_button.is-recording span {
+    display: block;
+}
