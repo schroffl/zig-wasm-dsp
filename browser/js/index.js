@@ -116,9 +116,6 @@ function createLegacyNode(onBufferAvailable) {
             const output_ptr = wasm.exports.js_process(num_frames, 1);
             const output_buffer = deref(Float32Array, wasm, output_ptr, num_samples);
 
-            // e.outputBuffer.getChannelData(0).set(left);
-            // e.outputBuffer.getChannelData(1).set(right);
-
             e.outputBuffer.getChannelData(0).set(output_buffer.slice(0, num_frames));
             e.outputBuffer.getChannelData(1).set(output_buffer.slice(num_frames));
 
@@ -301,6 +298,14 @@ audio_elem.addEventListener('timeupdate', e => {
     CustomUI.nextFrame(updateTimeProgress);
 });
 
+const updateTimeProgress = () => {
+    const current = humanizeDuration(audio_elem.currentTime);
+    const total = humanizeDuration(audio_elem.duration);
+
+    const str = audio_elem.readyState < 2 ? '- / -' : `${current} / ${total}`
+    time_progress.innerText = str;
+};
+
 audio_elem.addEventListener('play', e => play_button.classList.add('playing'));
 audio_elem.addEventListener('pause', e => play_button.classList.remove('playing'));
 
@@ -416,7 +421,6 @@ const gl_lissajous = lissajousGraph(lissajous_canvas, audio_ctx.sampleRate);
 const window_keystate = CustomUI.trackKeystate(window);
 
 let last_render = 0;
-let last_jerk = 0;
 let rotation_velocity = { x: 0, y: 0 };
 
 const loop = animationLoop(t => {
@@ -439,15 +443,6 @@ const loop = animationLoop(t => {
 
     gl_lissajous.rotation.y = clamp(gl_lissajous.rotation.y + rotation_velocity.y, -Math.PI / 2, Math.PI / 2);
     gl_lissajous.rotation.x += rotation_velocity.x;
-
-    const diff = 1 / rms * 33;
-
-    // if (t - last_jerk > diff) {
-    //     gl_lissajous.rotation.x = Math.sin(t / 1000 * Math.PI * 2 * 4);
-    //     gl_lissajous.rotation.y = Math.cos(t / 1001 * Math.PI * 2 * 2 * Math.random());
-    //     gl_lissajous.zoom = 1 + Math.random() * 5;
-    //     last_jerk = t;
-    // }
 
     gl_lissajous.render();
 
@@ -506,20 +501,16 @@ CustomUI.registerDragListener(lissajous_canvas, {
 });
 
 lissajous_canvas.addEventListener('wheel', e => {
-    const scroll_speed = 0.03;
-    const new_zoom = gl_lissajous.zoom - Math.sign(e.deltaY) * scroll_speed;
+    last_zoom = loop.timestamp;
+    zoom_velocity -= e.deltaY * 0.0008;
+    zoom_velocity = clamp(zoom_velocity, -1, 1);
 
-    gl_lissajous.zoom = clamp(new_zoom, 0.2, 10);
+    // const scroll_speed = 0.03;
+    // const new_zoom = gl_lissajous.zoom - Math.sign(e.deltaY) * scroll_speed;
+
+    // gl_lissajous.zoom = clamp(new_zoom, 0.2, 10);
     e.preventDefault();
 }, { passive: false });
-
-const updateTimeProgress = () => {
-    const current = humanizeDuration(audio_elem.currentTime);
-    const total = humanizeDuration(audio_elem.duration);
-
-    const str = audio_elem.readyState < 2 ? '- / -' : `${current} / ${total}`
-    time_progress.innerText = str;
-};
 
 CustomUI.knob(analyser_gain_knob, {
     min: 0,

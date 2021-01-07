@@ -70,8 +70,6 @@ export fn js_getParamBuffer(num_samples: usize) [*]f32 {
     return param_buffer.?.ptr;
 }
 
-var sample_counter: usize = 0;
-
 export fn js_process(num_frames: usize, num_params: usize) [*]f32 {
     var num_samples = num_frames * 2;
 
@@ -88,14 +86,8 @@ export fn js_process(num_frames: usize, num_params: usize) [*]f32 {
     var index: usize = 0;
 
     while (index < num_frames) : (index += 1) {
-        sample_counter += 1;
-
         const left_idx = index;
         const right_idx = num_frames + index;
-
-        const t = @intToFloat(f32, sample_counter) / 44_100.0;
-        // const left = std.math.sin(t * std.math.pi * 2 * 440);
-        // const right = std.math.cos(t * std.math.pi * 2 * 440);
 
         const left = in[left_idx];
         const right = in[right_idx];
@@ -112,9 +104,6 @@ export fn js_process(num_frames: usize, num_params: usize) [*]f32 {
 
         out[left_idx] = (mid + side) * ms_factor;
         out[right_idx] = (mid - side) * ms_factor;
-
-        // out[left_idx] = -1;
-        // out[right_idx] = 0.5;
     }
 
     return out.ptr;

@@ -12,9 +12,6 @@ const Matrix = {
             const row = Math.floor(i / 4);
             const column = i % 4;
 
-            const a_idx = column;
-            const b_idx = row * 4 + column;
-
             out[i] = a[column] * b[row * 4]
                 + a[column + 4] * b[ row * 4 + 1]
                 + a[column + 8] * b[row * 4 + 2]
@@ -257,7 +254,7 @@ function lissajousGraph(canvas, sample_rate) {
                 const able_to_write = data.slice(0, actual_length);
                 data = data.slice(actual_length);
 
-                const byte_offset = write_head * Float32Array.BYTES_PER_ELEMENT;
+                const byte_offset = byteCount(F32, write_head);
                 gl.bufferSubData(gl.ARRAY_BUFFER, byte_offset, able_to_write);
 
                 ring.write_head += actual_length;
@@ -509,18 +506,6 @@ function debounce(f, t) {
         clearTimeout(timeout);
         timeout = setTimeout.apply(window, args);
     };
-}
-
-function humanizeByteSize(bytes) {
-    if (bytes >= 1_000_000) {
-        const x = (bytes / 1_000_000).toFixed(6);
-        return `${x} mB`;
-    } else if (bytes >= 1000) {
-        const x = (bytes / 1000).toFixed(3);
-        return `${x} kB`;
-    } else {
-        return `${bytes} Bytes`;
-    }
 }
 
 function byteCount(T, count) {
