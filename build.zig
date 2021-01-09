@@ -75,7 +75,7 @@ const WrapJavascriptStep = struct {
             .ZigToWebAssembly => self.wasm_lib_step.?.getOutputPath(),
         };
 
-        const install_filename = self.builder.fmt("{}.js", .{self.name});
+        const install_filename = self.builder.fmt("{s}.js", .{self.name});
         const install_dirname = self.builder.getInstallPath(self.install_dir, "");
         const install_path = self.builder.getInstallPath(self.install_dir, install_filename);
 
