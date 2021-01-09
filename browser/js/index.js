@@ -477,26 +477,6 @@ CustomUI.registerDragListener(lissajous_canvas, {
     },
 });
 
-CustomUI.registerDragListener(lissajous_canvas, {
-    ref: {},
-    onstart: (ref, e) => {
-        ref.elem = e.target;
-        ref.x = gl_lissajous.rotation.x;
-        ref.y = gl_lissajous.rotation.y;
-    },
-    ondrag: (ref, coords, start, e) => {
-        const diffX = coords.x - start.x;
-        const diffY = coords.y - start.y;
-        const multiplier = 0.01;
-
-        gl_lissajous.rotation.x = ref.x + diffX * multiplier;
-        gl_lissajous.rotation.y = clamp(ref.y - diffY * multiplier, -Math.PI / 2, Math.PI / 2);
-    },
-    onend: ref => {
-        document.exitPointerLock();
-    },
-});
-
 lissajous_canvas.addEventListener('wheel', e => {
     last_zoom = loop.timestamp;
     zoom_velocity -= e.deltaY * 0.0008;
