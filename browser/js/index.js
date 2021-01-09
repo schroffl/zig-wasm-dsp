@@ -419,6 +419,8 @@ const window_keystate = CustomUI.trackKeystate(window);
 let last_render = 0;
 let rotation_velocity = { x: 0, y: 0 };
 
+let zoom_velocity = 0;
+
 const loop = animationLoop(t => {
     const dt = t - last_render;
     last_render = t;
@@ -426,6 +428,12 @@ const loop = animationLoop(t => {
     const velocity = dt / 300;
     rotation_velocity.x *= 0.9;
     rotation_velocity.y *= 0.9;
+
+    zoom_velocity *= 0.9;
+
+    if (Math.abs(zoom_velocity) < 0.000001) {
+        zoom_velocity = 0;
+    }
 
     if (window_keystate.isDown('w')) {
         rotation_velocity.y = -velocity;
@@ -439,6 +447,7 @@ const loop = animationLoop(t => {
 
     gl_lissajous.rotation.y = clamp(gl_lissajous.rotation.y + rotation_velocity.y, -Math.PI / 2, Math.PI / 2);
     gl_lissajous.rotation.x += rotation_velocity.x;
+    gl_lissajous.zoom = clamp(gl_lissajous.zoom + zoom_velocity * dt / 30, 0.2, 50);
 
     gl_lissajous.render();
 
@@ -468,14 +477,6 @@ CustomUI.registerDragListener(lissajous_canvas, {
     },
 });
 
-lissajous_canvas.addEventListener('wheel', e => {
-    const scroll_speed = 0.03;
-    const new_zoom = gl_lissajous.zoom - Math.sign(e.deltaY) * scroll_speed;
-
-    gl_lissajous.zoom = clamp(new_zoom, 0.2, 10);
-    e.preventDefault();
-}, { passive: false });
-
 CustomUI.registerDragListener(lissajous_canvas, {
     ref: {},
     onstart: (ref, e) => {
@@ -501,10 +502,6 @@ lissajous_canvas.addEventListener('wheel', e => {
     zoom_velocity -= e.deltaY * 0.0008;
     zoom_velocity = clamp(zoom_velocity, -1, 1);
 
-    // const scroll_speed = 0.03;
-    // const new_zoom = gl_lissajous.zoom - Math.sign(e.deltaY) * scroll_speed;
-
-    // gl_lissajous.zoom = clamp(new_zoom, 0.2, 10);
     e.preventDefault();
 }, { passive: false });
 
