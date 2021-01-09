@@ -65,7 +65,7 @@ const CustomUI = {
             const percentage = e.shiftKey ? 0.005 : 0.05;
 
             e.preventDefault();
-            knob_state.increment(percentage * e.deltaY * 0.2);
+            knob_state.increment(percentage * -e.deltaY * 0.2);
         }, { passive: false });
 
         indicator.addEventListener('dblclick', e => knob_state.reset());
