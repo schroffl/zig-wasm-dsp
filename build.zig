@@ -8,8 +8,11 @@ pub fn build(b: *Builder) void {
     const mode = b.standardReleaseOptions();
 
     const install_dir = std.build.InstallDir{ .Custom = "html" };
+    const js_dir = std.build.InstallDir{ .Custom = "html/js" };
+
     const wrap_step = WrapJavascriptStep.init(b, "zig-wasm-dsp", .{ .ZigToWebAssembly = "src/main.zig" }, install_dir);
     const worklet_step = WrapJavascriptStep.init(b, "worklet-wrapper", .{ .JavaScript = "browser/js/worklet.js" }, install_dir);
+    const texture_step = WrapJavascriptStep.init(b, "graph-texture", .{ .JavaScript = "browser/img/lissajous_graph.png" }, js_dir);
     const copy_step = b.addInstallDirectory(.{
         .source_dir = "browser",
         .install_dir = install_dir,
@@ -18,8 +21,9 @@ pub fn build(b: *Builder) void {
 
     wrap_step.step.dependOn(&copy_step.step);
     worklet_step.step.dependOn(&wrap_step.step);
+    texture_step.step.dependOn(&worklet_step.step);
 
-    b.default_step.dependOn(&worklet_step.step);
+    b.default_step.dependOn(&texture_step.step);
 }
 
 const WrapJavascriptStep = struct {

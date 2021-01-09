@@ -182,7 +182,7 @@ function lissajousGraph(canvas, sample_rate) {
 
     const frame_index_buffer = gl.createBuffer();
 
-    const texture = loadTexture(gl, `data:image/png;base64,${window.uiImage}`);
+    const texture = loadTexture(gl, `data:image/png;base64,${window['graph-texture']}`);
 
     const ring = {
         buffer: gl.createBuffer(),
