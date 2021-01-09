@@ -100,8 +100,8 @@ const WrapJavascriptStep = struct {
         try writer.writeAll(self.name);
         try writer.writeAll("\"] = \"");
 
-        std.base64.standard_encoder.encode(base64_buffer, content);
-        try writer.writeAll(base64_buffer);
+        const final_base64 = std.base64.standard_encoder.encode(base64_buffer, content);
+        try writer.writeAll(final_base64);
         try writer.writeAll("\";\n");
     }
 };
