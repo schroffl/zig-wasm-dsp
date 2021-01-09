@@ -23,5 +23,5 @@ jobs:
           committer_email: ""
           commit_message: "Deploy browser build to GitHub Pages"
           keep_history: true
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
