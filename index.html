@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title></title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="css/index.css">
+        <link rel="stylesheet" href="css/colorscheme.css">
+    </head>
+    <body>
+        <aside>
+            <noscript>
+                For obvious reasons this page requires JavaScript to be enabled.
+            </noscript>
+            <script>
+                const noscript = document.querySelector('noscript');
+noscript.parentElement.removeChild(noscript);
+            </script>
+        </aside>
+
+        <main id="main-content">
+            <canvas id="lissajous_canvas"></canvas>
+
+            <div class="ui-layer">
+                <div class="left-side">
+                    <div id="mid_side_knob" tabindex="1"></div>
+                    <!--<div id="lfo_freq_knob" tabindex="2"></div>
+                    <div id="lfo_depth_knob" tabindex="3"></div>-->
+                </div>
+
+                <div class="right-side">
+                    <div id="analyser_gain_knob" class="labels-left" tabindex="4"></div>
+                    <div id="size_knob" class="labels-left" tabindex="5"></div>
+                    <div id="buffer_size_knob" class="labels-left" tabindex="6"></div>
+                </div>
+
+
+                <div class="media-controls">
+                    <div id="time_slider" tabindex="0"></div>
+
+                    <div class="media-buttons">
+                        <button id="play_button">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="when-playing feather feather-play"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            <svg height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="when-paused feather feather-pause"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                        </button>
+
+                        <span id="time_progress"></span>
+
+                        <button id="light_toggle_button">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="when-dark feather feather-sun"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="when-light feather feather-moon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                        </button>
+
+                        <button id="record_button">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-circle"><circle cx="12" cy="12" r="10"></circle></svg>
+                            <span id="recording_duration">00:37</span>
+                        </button>
+
+                        <button id="upload_button">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-upload"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        </button>
+
+                        <button id="fullscreen_button">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-maximize"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <script src="js/image.js"></script>
+
+        <script src="js/ui.js"></script>
+        <script src="js/lissajous.js"></script>
+
+        <script src="zig-wasm-dsp.js"></script>
+        <script src="worklet-wrapper.js"></script>
+        <script src="js/index.js"></script>
+    </body>
+</html>
