@@ -53,7 +53,9 @@ const Matrix = {
 const F32 = Float32Array;
 
 function lissajousGraph(canvas, sample_rate) {
-    const gl = canvas.getContext('webgl');
+    const gl = canvas.getContext('webgl', {
+        premultipliedAlpha: false,
+    });
 
     const sample_program = webglProgram(gl, `
         precision mediump float;
