@@ -172,10 +172,6 @@ function humanizeDuration(duration) {
     return `${minutes}:${seconds}`;
 }
 
-function humanizePrecisionDuration(duration) {
-
-}
-
 function animationLoop(fn) {
     let id = undefined;
     const wrapper = t => {
