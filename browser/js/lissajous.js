@@ -277,11 +277,23 @@ function lissajousGraph(canvas, sample_rate) {
             state.updateProjection();
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+            // TODO Automatically determine in which order these need
+            //      to be rendered for proper transparency.
+
+            state.renderFrames();
+
+            if (!state.hide_ui) {
+                state.renderGraph();
+            }
+        },
+        renderFrames: function() {
             const num_frames = ring.max_capacity / 2;
             const read_head = ring.read_head % ring.max_capacity;
             const first_samples = ring.max_capacity - read_head;
 
             gl.enable(gl.CULL_FACE);
+            gl.depthFunc(gl.ALWAYS);
+            gl.depthMask(true);
             gl.useProgram(sample_program.program);
             gl.uniform1f(sample_program.uniforms.num_frames, num_frames);
 
@@ -291,13 +303,6 @@ function lissajousGraph(canvas, sample_rate) {
             } else {
                 state.renderRing(read_head, 0, first_samples);
                 state.renderRing(0, first_samples / 2, read_head);
-            }
-
-            if (!state.hide_ui) {
-                gl.useProgram(texture_program.program);
-                gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-                gl.disable(gl.CULL_FACE);
-                state.renderMeta();
             }
         },
         renderRing: function(sample_offset, index_offset, num_samples) {
@@ -318,7 +323,12 @@ function lissajousGraph(canvas, sample_rate) {
 
             inst_ext.drawElementsInstancedANGLE(gl.TRIANGLES, icosahedron.indices.length, gl.UNSIGNED_SHORT, 0, num_samples / 2);
         },
-        renderMeta: function() {
+        renderGraph: function() {
+            gl.useProgram(texture_program.program);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            gl.disable(gl.CULL_FACE);
+            gl.depthFunc(gl.LESS);
+
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, texture);
             gl.uniform1i(texture_program.uniforms.texture, 0);
