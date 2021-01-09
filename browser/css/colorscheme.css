@@ -57,6 +57,10 @@ body.dark-mode .media-controls {
     color: white;
 }
 
+body.dark-mode button:focus {
+    outline-color: white;
+}
+
 body.dark-mode button svg.feather {
     stroke: white;
 }
