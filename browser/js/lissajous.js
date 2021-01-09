@@ -40,6 +40,14 @@ const Matrix = {
                              0,                  0,                 0,                                1,
         ]);
     },
+    multiplyMany: function(matrices) {
+        if (matrices.length < 1)
+            return Matrix.identity();
+
+        return matrices.slice(1).reduce((result, matrix) => {
+            return Matrix.multiply(matrix, result);
+        }, matrices[0]);
+    },
 };
 
 const F32 = Float32Array;
@@ -354,24 +362,20 @@ function lissajousGraph(canvas, sample_rate) {
                 projection = Matrix.perspective(70, gl.drawingBufferWidth / gl.drawingBufferHeight, 0.0001, 100);
             }
 
-            const transformations = [
+            const matrix = Matrix.multiplyMany([
                 Matrix.scale(state.zoom, state.zoom, state.zoom),
                 Matrix.rotateZ(-Math.PI / 4),
                 Matrix.rotateY(state.rotation.x),
                 Matrix.rotateX(state.rotation.y),
                 Matrix.translate(0, 0, -4),
                 projection,
-            ];
-
-            const final = transformations.slice(1).reduce((result, next) => {
-                return Matrix.multiply(next, result);
-            }, transformations[0]);
+            ]);
 
             gl.useProgram(sample_program.program);
-            gl.uniformMatrix4fv(sample_program.uniforms.my_matrix, false, final);
+            gl.uniformMatrix4fv(sample_program.uniforms.my_matrix, false, matrix);
 
             gl.useProgram(texture_program.program);
-            gl.uniformMatrix4fv(texture_program.uniforms.my_matrix, false, final);
+            gl.uniformMatrix4fv(texture_program.uniforms.my_matrix, false, matrix);
 
         },
     };
