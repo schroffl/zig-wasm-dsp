@@ -504,7 +504,7 @@ CustomUI.knob(size_knob, {
 }).reset();
 
 CustomUI.knob(buffer_size_knob, {
-    min: 1024,
+    min: audio_ctx.sampleRate / 1000,
     max: audio_ctx.sampleRate * 10,
     initial: 8192,
     map: value => Math.round(value),
