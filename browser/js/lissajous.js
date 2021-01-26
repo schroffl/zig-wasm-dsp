@@ -100,7 +100,7 @@ function lissajousGraph(canvas, sample_rate) {
         uniform vec3 point_color;
 
         void main() {
-            float alpha = time_decay * 0.5 + 0.5;
+            float alpha = time_decay * 0.3 + 0.7;
 
             float dc = draw_clipped;
             float no_dc = 1.0 - dc;
