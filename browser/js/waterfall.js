@@ -65,9 +65,11 @@ function waterfallGraph(canvas, sample_rate, bin_count) {
     for (let i = 0; i < mesh.length / 3; i++) {
         const z = Math.floor(i / mesh_width) / (mesh_depth - 1);
 
-        // TODO Figure out why this returns a value in (0, 2)
-        const log_x = mapValueLog(i % mesh_width, 0, mesh_width - 1, 1, 2);
-        const x = log_x - 1.0;
+        // A small offset, because log(0) is not defined
+        const p = Number.EPSILON;
+
+        const log_x = mapValueLog(mesh_width - 1 - (i % mesh_width), 0, mesh_width - 1, p, 1 + p);
+        const x = (1.0 - log_x - p) * 2 - 1;
 
         mesh[i * 3] = x;
         mesh[i * 3 + 2] = z;
@@ -201,6 +203,6 @@ function mapValueLog(val, fmin, fmax, tmin, tmax) {
     const log_tmin = Math.log(tmin);
     const log_tmax = Math.log(tmax);
 
-    return normalized * Math.exp(Math.log(tmax) - log_tmin) + log_tmin;
+    return Math.exp(normalized * (Math.log(tmax) - log_tmin) + log_tmin);
 
 }
