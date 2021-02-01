@@ -109,7 +109,7 @@ main {
 }
 
 main canvas {
-    width: 100%;
+    width: 50%;
 }
 
 main .ui-layer {

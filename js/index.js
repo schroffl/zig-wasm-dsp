@@ -416,6 +416,12 @@ light_toggle_button.addEventListener('click', () => {
 const gl_lissajous = lissajousGraph(lissajous_canvas, audio_ctx.sampleRate);
 const window_keystate = CustomUI.trackKeystate(window);
 
+const analyser_node = audio_ctx.createAnalyser();
+analyser_node.fftSize = 256;
+analyser_node.smoothingTimeConstant = 0.1;
+const fft_data = new Float32Array(analyser_node.frequencyBinCount);
+const gl_waterfall = waterfallGraph(waterfall_canvas, audio_ctx.sampleRate, fft_data.length);
+
 let last_render = 0;
 let rotation_velocity = { x: 0, y: 0 };
 
@@ -450,6 +456,15 @@ const loop = animationLoop(t => {
     gl_lissajous.zoom = clamp(gl_lissajous.zoom + zoom_velocity * dt / 30, 0.2, 50);
 
     gl_lissajous.render();
+
+    (function() {
+        analyser_node.getFloatFrequencyData(fft_data);
+        if (!audio_elem.paused) {
+            gl_waterfall.update(fft_data);
+        }
+
+        gl_waterfall.render();
+    })();
 
     if (active_recording) {
         const duration = Date.now() - active_recording.timestamp;
@@ -589,4 +604,6 @@ createProcessorNode(buffer => {
     processor.node.connect(audio_ctx.destination);
     setProcessorParam = processor.setParam;
     custom_node = processor.node;
+
+    custom_node.connect(analyser_node);
 });
