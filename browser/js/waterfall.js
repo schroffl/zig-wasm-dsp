@@ -12,15 +12,21 @@ function waterfallGraph(canvas, sample_rate, bin_count) {
         uniform vec2 db_bounds;
 
         varying float volume;
+        varying float frequency;
 
         vec3 mapY(vec3 val, vec2 bounds) {
-            float y = (val.y - bounds.x) / (bounds.y - bounds.x);
-            return vec3(val.x, y * 2.0 - 1.0, val.z * 2.0 - 1.0);
+            float y = (val.y - bounds.x) / (bounds.y - bounds.x) + 2.0 - 1.0;
+            float clamped_y = max(y, 0.0);
+
+            return vec3(val.x, clamped_y, val.z * 2.0 - 1.0);
         }
 
         void main() {
             vec3 pos = mapY(a_position, db_bounds);
+
             volume = pos.y;
+            frequency = pos.x;
+
             gl_PointSize = 2.0;
             gl_Position = proj_matrix * vec4(pos, 1.0);
         }
@@ -28,12 +34,10 @@ function waterfallGraph(canvas, sample_rate, bin_count) {
         precision mediump float;
 
         varying float volume;
+        varying float frequency;
 
         void main() {
-            float g = -1.0 - volume;
-            float r = 1.0 - g;
-
-            gl_FragColor = vec4(r, g, 0.0, 1.0);
+            gl_FragColor = vec4(0.7 + frequency * 0.3, volume, 0.0, 1.0);
         }
     `, [
         'a_position',
@@ -54,15 +58,18 @@ function waterfallGraph(canvas, sample_rate, bin_count) {
     let history_len = 0;
     const max_history = new Float32Array(20).fill(0);
 
-    let db_max = 3;
-    let db_min = -70;
+    let db_max = 0;
+    let db_min = -50;
 
     const mesh_buffer = gl.createBuffer();
     const mesh_width = bin_count;
-    const mesh_depth = 50;
-    const mesh = new Float32Array(mesh_width * 3 * mesh_depth);
+    const mesh_depth = Math.floor(65535 / bin_count);
+    const vertex_size = 6;
+    const mesh = new Float32Array(mesh_width * vertex_size * mesh_depth);
 
-    for (let i = 0; i < mesh.length / 3; i++) {
+    console.log(mesh_width, mesh.length / vertex_size);
+
+    for (let i = 0; i < mesh.length / vertex_size; i++) {
         const z = Math.floor(i / mesh_width) / (mesh_depth - 1);
 
         // A small offset, because log(0) is not defined
@@ -71,13 +78,17 @@ function waterfallGraph(canvas, sample_rate, bin_count) {
         const log_x = mapValueLog(mesh_width - 1 - (i % mesh_width), 0, mesh_width - 1, p, 1 + p);
         const x = (1.0 - log_x - p) * 2 - 1;
 
-        mesh[i * 3] = x;
-        mesh[i * 3 + 2] = z;
+        mesh[i * vertex_size] = x;
+        mesh[i * vertex_size + 1] = 0;
+        mesh[i * vertex_size + 2] = z;
     }
 
     gl.bindBuffer(gl.ARRAY_BUFFER, mesh_buffer);
     gl.bufferData(gl.ARRAY_BUFFER, mesh, gl.DYNAMIC_DRAW);
 
+    // TODO The maximum amount of indices is limited by the Uint16Array, which
+    //      only gives us 2^16 of them. If we want to display more vertices we
+    //      need to render them in multiple batches.
     const index_buffer = gl.createBuffer();
     const quad_count = (mesh_depth - 1) * (mesh_width - 1);
     const index_count = quad_count * 2 * 3;
@@ -112,34 +123,26 @@ function waterfallGraph(canvas, sample_rate, bin_count) {
             gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
         },
         update: function(fft_data) {
-            const max = 3;
-            const min = -50;
-
             let val_max = -Infinity;
 
             for (let i = 1; i < mesh_depth; i++) {
                 for (let j = 0; j < mesh_width; j++) {
-                    const source_i = i * mesh_width * 3 + j * 3 + 1;
-                    const target_i = (i - 1) * mesh_width * 3 + j * 3 + 1;
+                    const source_i = i * mesh_width * vertex_size + j * vertex_size + 1;
+                    const target_i = (i - 1) * mesh_width * vertex_size + j * vertex_size + 1;
 
                     mesh[target_i] = mesh[source_i];
                 }
             }
 
             for (let i = 0; i < mesh_width; i++) {
-                const raw_x = mapValue(i, 0, mesh_width - 1, 0, 10);
-                const log_x = 10 - 1 / Math.log10(raw_x + 1);
-                const x = mapValue(log_x, 0, 10, -1, 1);
-
                 const val = fft_data[i];
-                const y = mapValue(val, db_min, db_max, -1, 1);
 
                 if (val > val_max) {
                     val_max = val;
                 }
 
-                const write_offset = mesh_width * (mesh_depth - 1) * 3;
-                mesh[write_offset + i * 3 + 1] = val;
+                const write_offset = mesh_width * (mesh_depth - 1) * vertex_size;
+                mesh[write_offset + i * vertex_size + 1] = val;
             }
 
             for (let i = 1; i < history_len; i++) {
@@ -159,8 +162,8 @@ function waterfallGraph(canvas, sample_rate, bin_count) {
             gl.useProgram(waterfall_program.program);
             gl.uniform2f(waterfall_program.uniforms.db_bounds, db_min, db_max);
         },
-        rotation: { x: 0, y: -0.3 },
-        scale: { x: 5, y: 0.3, z: 5 },
+        rotation: { x: Math.PI / 2, y: -1.5 },
+        scale: { x: 5, y: 3, z: 5 },
         render: function() {
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
             gl.useProgram(waterfall_program.program);
@@ -178,7 +181,7 @@ function waterfallGraph(canvas, sample_rate, bin_count) {
 
             gl.bindBuffer(gl.ARRAY_BUFFER, mesh_buffer);
             gl.enableVertexAttribArray(waterfall_program.attribs.a_position);
-            gl.vertexAttribPointer(waterfall_program.attribs.a_position, 3, gl.FLOAT, false, 0, 0);
+            gl.vertexAttribPointer(waterfall_program.attribs.a_position, 3, gl.FLOAT, false, byteCount(Float32Array, vertex_size), 0);
 
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
             gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
