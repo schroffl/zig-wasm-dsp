@@ -417,8 +417,9 @@ const gl_lissajous = lissajousGraph(lissajous_canvas, audio_ctx.sampleRate);
 const window_keystate = CustomUI.trackKeystate(window);
 
 const analyser_node = audio_ctx.createAnalyser();
-analyser_node.fftSize = 256;
+analyser_node.fftSize = 2048;
 analyser_node.smoothingTimeConstant = 0.1;
+
 const fft_data = new Float32Array(analyser_node.frequencyBinCount);
 const gl_waterfall = waterfallGraph(waterfall_canvas, audio_ctx.sampleRate, fft_data.length);
 
