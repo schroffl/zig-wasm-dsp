@@ -302,3 +302,41 @@ document.addEventListener('selectstart', e => {
     if (CustomUI.prevent_text_selection)
         e.preventDefault();
 });
+
+class Pane {
+
+    constructor() {
+        this.element = document.createElement('div');
+        this.element.classList.add('pane');
+    }
+
+}
+
+class CanvasPane extends Pane {
+
+    constructor() {
+        super();
+
+        this.canvas = document.createElement('canvas');
+        this.controls = {
+            top_right: document.createElement('div'),
+            bottom_center: document.createElement('div'),
+        };
+
+        this.controls.top_right.classList.add('top-right');
+        this.controls.bottom_center.classList.add('bottom-center');
+
+        this.element.appendChild(this.controls.top_right);
+        this.element.appendChild(this.controls.bottom_center);
+        this.element.appendChild(this.canvas);
+    }
+
+    onResize() {
+        const bounds = this.canvas.getBoundingClientRect();
+        const dpi = window.devicePixelRatio;
+
+        this.canvas.width = bounds.width * dpi;
+        this.canvas.height = bounds.height * dpi;
+    }
+
+}

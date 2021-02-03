@@ -108,10 +108,6 @@ main {
     align-items: stretch;
 }
 
-main canvas {
-    width: 50%;
-}
-
 main .ui-layer {
     position: absolute;
     top: 0;
@@ -120,6 +116,7 @@ main .ui-layer {
     bottom: 0;
     pointer-events: none;
     overflow: hidden;
+    z-index: 1;
 }
 
 .media-controls {
@@ -298,4 +295,19 @@ main .ui-layer.hidden .media-controls {
 
 #record_button.is-recording span {
     display: block;
+}
+
+.pane {
+    position: relative;
+
+    flex: 1;
+}
+
+.pane canvas {
+    width: 100%;
+    height: 100%;
+}
+
+.pane:nth-child(2) {
+    border-left: 1px solid #ccc;
 }
