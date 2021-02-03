@@ -5,6 +5,7 @@ const audio_elem = new Audio();
 const AudioCtx = window['AudioContext'] || webkitAudioContext;
 const audio_ctx = new AudioCtx();
 const audio_source = audio_ctx.createMediaElementSource(audio_elem);
+const gain_node = audio_ctx.createGain();
 
 let setProcessorParam = (name, value) => console.debug(`${name} = ${value} was ignored`);
 let custom_node = null;
@@ -148,58 +149,17 @@ function createLegacyNode(onBufferAvailable) {
     });
 }
 
-function humanizePercentage(value) {
-    const p = value * 100;
-    const str = (p == -0 ? 0 : p).toFixed(2);
-    return str + '%';
-}
-
-function humanizeFrequency(value) {
-    if (value >= 1000) {
-        return (value / 1000).toFixed(2) + ' kHz';
-    } else {
-        return value.toFixed(2) + ' Hz';
-    }
-}
-
-function humanizeDuration(duration) {
-    if (typeof duration !== 'number' || isNaN(duration))
-        return '-';
-
-    const seconds = Math.ceil(duration % 60).toString().padStart(2, '0');
-    const minutes = Math.floor(duration / 60).toString().padStart(2, '0');
-
-    return `${minutes}:${seconds}`;
-}
-
-function animationLoop(fn) {
-    let id = undefined;
-    const wrapper = t => {
-        fn(t);
-        id = requestAnimationFrame(wrapper);
-    };
-
-    return {
-        start: () => id === undefined && requestAnimationFrame(wrapper),
-        stop: () => (cancelAnimationFrame(id), id = undefined),
-    };
-}
-
-function clamp(val, min, max) {
-    return Math.max(min, Math.min(max, val));
-}
-
 function onThemeChange(new_theme) {
     switch (new_theme) {
         case 'dark': {
-            gl_lissajous.setPointColor(0.572, 0.909, 0.266);
+            lissajous_pane.setPointColor(0.572, 0.909, 0.266);
             document.body.classList.add('dark-mode');
             document.body.classList.remove('light-mode');
             break;
         }
 
         case 'light': {
-            gl_lissajous.setPointColor(0.5, 0.2, 0.901);
+            lissajous_pane.setPointColor(0.5, 0.2, 0.901);
             document.body.classList.remove('dark-mode');
             document.body.classList.add('light-mode');
             break;
@@ -207,70 +167,9 @@ function onThemeChange(new_theme) {
     }
 }
 
-function millisecondsToSamples(sample_rate, milliseconds) {
-    return Math.ceil(milliseconds * sample_rate / 1000);
-}
-
-function samplesToMilliseconds(sample_rate, samples) {
-    return samples * 1000 / sample_rate;
-}
-
-let active_recording = null;
-
-function beginRecording() {
-    if (!custom_node)
-        return;
-
-    if (active_recording) {
-        active_recording.rec.stop();
-        active_recording = null;
-        setRecordButtonActive(false);
-        return;
-    }
-
-    const audio_recording_node = audio_ctx.createMediaStreamDestination();
-    const audio_track = audio_recording_node.stream.getAudioTracks()[0];
-    custom_node.connect(audio_recording_node);
-
-    const video_stream = lissajous_canvas.captureStream();
-    video_stream.addTrack(audio_track);
-
-    const chunks = [];
-    const rec = new MediaRecorder(video_stream, {
-        mimeType: 'video/webm',
-    });
-
-    active_recording = {
-        timestamp: Date.now(),
-        rec: rec,
-    };
-
-    rec.ondataavailable = e => chunks.push(e.data);
-    rec.onstop = e => exportVideo(chunks, rec.mimeType);
-    rec.start();
-    setRecordButtonActive(true);
-}
-
-function exportVideo(chunks, mime) {
-    const blob = new Blob(chunks, { mimeType: mime });
-    const a = document.createElement('a');
-
-    a.style.position = 'fixed';
-    a.style.top = '-500px';
-    a.style.bottom = '-500px';
-    a.href = URL.createObjectURL(blob);
-    a.name = a.download = 'recording.webm';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => document.body.removeChild(a), 1000);
-}
-
-function setRecordButtonActive(active) {
-    if (active) {
-        record_button.classList.add('is-recording');
-    } else {
-        record_button.classList.remove('is-recording');
-    }
+function onDpiChange() {
+    lissajos_pane.onResize();
+    waterfall_pane.onResize();
 }
 
 const time_slider_state = CustomUI.slider(time_slider, {
@@ -343,7 +242,7 @@ function selectFile(accept, onchange) {
 function toggleUI() {
     const ui_layer = document.querySelector('.ui-layer');
     ui_layer.classList.toggle('hidden');
-    gl_lissajous.hide_ui = ui_layer.classList.contains('hidden');
+    lissajous_pane.config.hide_ui = ui_layer.classList.contains('hidden');
 }
 
 function toggleFullscreen() {
@@ -386,14 +285,9 @@ CustomUI.registerHotkeys(window, {
     'u': () => onUserUpload(),
     'ArrowUp': () => audio_elem.volume = clamp(audio_elem.volume + 0.1, 0, 1),
     'ArrowDown': () => audio_elem.volume = clamp(audio_elem.volume - 0.1, 0, 1),
-    'r': () => beginRecording(),
     '?': () => console.log('TODO: Show info dialog'),
     'Escape': () => document.activeElement && document.activeElement.blur(),
-    'p': () => {
-        const current = gl_lissajous.projection_type;
-        gl_lissajous.projection_type = current === 'perspective' ? 'orthographic' : 'perspective';
-    },
-    'q': () => gl_lissajous.resetRing(),
+    'q': () => lissajous_pane.resetRing(),
 });
 
 CustomUI.knob(mid_side_knob, {
@@ -406,14 +300,14 @@ CustomUI.knob(mid_side_knob, {
 });
 
 fullscreen_button.addEventListener('click', () => toggleFullscreen());
+
 upload_button.addEventListener('click', () => onUserUpload());
-record_button.addEventListener('click', () => beginRecording());
+
 light_toggle_button.addEventListener('click', () => {
     const has_dark_mode = document.body.classList.contains('dark-mode');
     onThemeChange(has_dark_mode ? 'light' : 'dark');
 });
 
-const gl_lissajous = lissajousGraph(lissajous_canvas, audio_ctx.sampleRate);
 const window_keystate = CustomUI.trackKeystate(window);
 
 const analyser_node = audio_ctx.createAnalyser();
@@ -421,121 +315,23 @@ analyser_node.fftSize = 2048;
 analyser_node.smoothingTimeConstant = 0.1;
 
 const fft_data = new Float32Array(analyser_node.frequencyBinCount);
-const gl_waterfall = waterfallGraph(waterfall_canvas, audio_ctx.sampleRate, fft_data.length);
+const waterfall_pane = new WaterfallPane(audio_ctx.sampleRate, analyser_node.frequencyBinCount);
+const lissajous_pane = new LissajousPane();
 
 let last_render = 0;
-let rotation_velocity = { x: 0, y: 0 };
-
-let zoom_velocity = 0;
 
 const loop = animationLoop(t => {
     const dt = t - last_render;
     last_render = t;
 
-    const velocity = dt / 300;
-    rotation_velocity.x *= 0.9;
-    rotation_velocity.y *= 0.9;
-
-    zoom_velocity *= 0.9;
-
-    if (Math.abs(zoom_velocity) < 0.000001) {
-        zoom_velocity = 0;
-    }
-
-    if (window_keystate.isDown('w')) {
-        rotation_velocity.y = -velocity;
-    } else if (window_keystate.isDown('s')) {
-        rotation_velocity.y = velocity;
-    } else if (window_keystate.isDown('a')) {
-        rotation_velocity.x = velocity;
-    } else if (window_keystate.isDown('d')) {
-        rotation_velocity.x = -velocity;
-    }
-
-    gl_lissajous.rotation.y = clamp(gl_lissajous.rotation.y + rotation_velocity.y, -Math.PI / 2, Math.PI / 2);
-    gl_lissajous.rotation.x += rotation_velocity.x;
-    gl_lissajous.zoom = clamp(gl_lissajous.zoom + zoom_velocity * dt / 30, 0.2, 50);
-
-    gl_lissajous.render();
-
-    (function() {
+    if (!audio_elem.paused) {
         analyser_node.getFloatFrequencyData(fft_data);
-        if (!audio_elem.paused) {
-            gl_waterfall.update(fft_data);
-        }
-
-        gl_waterfall.render();
-    })();
-
-    if (active_recording) {
-        const duration = Date.now() - active_recording.timestamp;
-        recording_duration.innerText = humanizeDuration(duration / 1000);
+        waterfall_pane.update(fft_data);
     }
+
+    lissajous_pane.render();
+    waterfall_pane.render();
 });
-
-CustomUI.registerDragListener(lissajous_canvas, {
-    ref: {},
-    onstart: (ref, e) => {
-        ref.elem = e.target;
-        ref.x = gl_lissajous.rotation.x;
-        ref.y = gl_lissajous.rotation.y;
-    },
-    ondrag: (ref, coords, start, e) => {
-        const diffX = coords.x - start.x;
-        const diffY = coords.y - start.y;
-        const multiplier = 0.01;
-
-        gl_lissajous.rotation.x = ref.x + diffX * multiplier;
-        gl_lissajous.rotation.y = clamp(ref.y - diffY * multiplier, -Math.PI / 2, Math.PI / 2);
-    },
-    onend: ref => {
-        document.exitPointerLock();
-    },
-});
-
-lissajous_canvas.addEventListener('wheel', e => {
-    last_zoom = loop.timestamp;
-    zoom_velocity -= e.deltaY * 0.0008;
-    zoom_velocity = clamp(zoom_velocity, -1, 1);
-
-    e.preventDefault();
-}, { passive: false });
-
-CustomUI.knob(analyser_gain_knob, {
-    min: 0,
-    max: 10,
-    initial: 1,
-    label: 'Lissajous Gain',
-    humanize: humanizePercentage,
-    onChange: value => gl_lissajous.setGraphScale(value),
-}).reset();
-
-CustomUI.knob(size_knob, {
-    min: 0.5,
-    max: 30,
-    initial: 10,
-    label: 'Point Size',
-    humanize: x => x.toFixed(2),
-    onChange: point_size => gl_lissajous.setPointSize(point_size),
-}).reset();
-
-CustomUI.knob(buffer_size_knob, {
-    min: audio_ctx.sampleRate / 1000,
-    max: audio_ctx.sampleRate * 10,
-    initial: 8192,
-    map: value => Math.round(value),
-    label: 'Buffer Size',
-    humanize: x => {
-        const ms = samplesToMilliseconds(audio_ctx.sampleRate, x).toFixed(2);
-
-        return `${x} Frames\n~${ms} ms    `;
-    },
-    onChange: debounce(onBufferSizeChange, 200),
-}).reset();
-
-function onBufferSizeChange(value) {
-    gl_lissajous.setRingSize(value);
-}
 
 if (window.matchMedia) {
     const theme_query = window.matchMedia('(prefers-color-scheme: dark)');
@@ -546,9 +342,7 @@ if (window.matchMedia) {
             onThemeChange(e.matches ? 'dark' : 'light');
         });
 
-        dpi_query.addEventListener('change', e => {
-            gl_lissajous.onResize();
-        });
+        dpi_query.addEventListener('change', e => onDpiChange());
 
         onThemeChange(theme_query.matches ? 'dark' : 'light');
     } else {
@@ -561,13 +355,13 @@ if (window.matchMedia) {
             const dpi_matches = dpi_query.matches;
             const theme_matches = theme_query.matches;
 
-            console.log(dpi_matches, theme_matches, cache);
+            if (dpi_matches !== cache.dpi_matched) {
+                onDpiChange();
+            }
 
-            if (dpi_matches !== cache.dpi_matched)
-                gl_lissajous.onResize();
-
-            if (theme_matches !== cache.theme_matched)
+            if (theme_matches !== cache.theme_matched) {
                 onThemeChange(theme_matches ? 'dark' : 'light');
+            }
 
             cache.dpi_matched = dpi_matches;
             cache.theme_matched = theme_matches;
@@ -583,7 +377,6 @@ if (window.matchMedia) {
 loop.start();
 updateTimeProgress();
 
-let rms = 0;
 let logged_size = false;
 
 createProcessorNode(buffer => {
@@ -593,18 +386,26 @@ createProcessorNode(buffer => {
     }
 
     if (!audio_elem.paused) {
-        gl_lissajous.updateRing(buffer);
-
-        let buffer_sum = 0;
-        buffer.forEach(value => buffer_sum += value * value);
-        rms *= 0.8;
-        rms += Math.sqrt(buffer_sum / buffer.length) * 0.2;
+        lissajous_pane.update(buffer);
     }
 }).then(processor => {
-    audio_source.connect(processor.node);
+    audio_source.connect(gain_node);
+    gain_node.connect(processor.node);
     processor.node.connect(audio_ctx.destination);
     setProcessorParam = processor.setParam;
     custom_node = processor.node;
 
     custom_node.connect(analyser_node);
 });
+
+const main_elem = document.querySelector('main');
+main_elem.insertBefore(waterfall_pane.element, main_elem.firstElementChild);
+main_elem.insertBefore(lissajous_pane.element, main_elem.firstElementChild);
+
+waterfall_pane.onResize();
+lissajous_pane.onResize();
+
+window.addEventListener('resize', debounce(() => {
+    waterfall_pane.onResize();
+    lissajous_pane.onResize();
+}, 200));
