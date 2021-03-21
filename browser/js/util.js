@@ -161,7 +161,10 @@ function webglProgram(gl, vertex_source, fragment_source, lookup_attribs, lookup
     };
 }
 
-function loadTexture(gl, url) {
+function loadTexture(gl, url, tex_unit, generate_mipmap) {
+    tex_unit = tex_unit === undefined ? gl.TEXTURE0 : tex_unit;
+    gl.activeTexture(tex_unit);
+
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
 
@@ -170,10 +173,16 @@ function loadTexture(gl, url) {
 
     const img = new Image(url);
     img.onload = () => {
+        const current_tex_unit = gl.getParameter(gl.ACTIVE_TEXTURE);
+        gl.activeTexture(tex_unit);
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
 
-        gl.generateMipmap(gl.TEXTURE_2D);
+        if (generate_mipmap) {
+            gl.generateMipmap(gl.TEXTURE_2D);
+        }
+
+        gl.activeTexture(current_tex_unit);
     };
 
     img.src = url;

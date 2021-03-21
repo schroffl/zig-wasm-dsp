@@ -17,6 +17,7 @@ pub fn build(b: *Builder) void {
     const resource_step = ResourceStep.init(b, "resources", install_dir);
     resource_step.addResource("worklet-wrapper", "resources/worklet.js");
     resource_step.addResource("graph-texture", "resources/lissajous-graph.png");
+    resource_step.addResource("heatmap-scale", "resources/hms.jpg");
 
     const wasm_step = resource_step.addWasmResource("zig-wasm-dsp", "src/main.zig");
     wasm_step.setBuildMode(mode);

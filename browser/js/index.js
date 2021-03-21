@@ -152,14 +152,14 @@ function createLegacyNode(onBufferAvailable) {
 function onThemeChange(new_theme) {
     switch (new_theme) {
         case 'dark': {
-            lissajous_pane.setPointColor(0.572, 0.909, 0.266);
+            lissajous_pane.config.dots.color = { r: 0.572, g: 0.909, b: 0.266 };
             document.body.classList.add('dark-mode');
             document.body.classList.remove('light-mode');
             break;
         }
 
         case 'light': {
-            lissajous_pane.setPointColor(0.5, 0.2, 0.901);
+            lissajous_pane.config.dots.color = { r: 0.5, g: 0.2, b: 0.901 };
             document.body.classList.remove('dark-mode');
             document.body.classList.add('light-mode');
             break;

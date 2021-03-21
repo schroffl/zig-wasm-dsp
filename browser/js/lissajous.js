@@ -8,6 +8,12 @@ class LissajousPane extends CanvasPane {
             rotation: { x: 0, y: 0 },
             zoom: 1,
             mode: '3d',
+            heatmap_overlay: false,
+            graph_scale: 1,
+            dots: {
+                size: 1,
+                color: { r: 0, g: 0, b: 0 },
+            },
         };
 
         this.glSetup();
@@ -40,13 +46,12 @@ class LissajousPane extends CanvasPane {
         }, { passive: false });
 
         this.setRingSize(8192);
-        this.setGraphScale(1);
-        this.setPointSize(1);
     }
 
     glSetup() {
         const gl = this.gl = this.canvas.getContext('webgl', {
-            premultipliedAlpha: false,
+            premultipliedAlpha: true,
+            alpha: true,
         });
 
         this.sample_program = webglProgram(gl, `
@@ -126,10 +131,11 @@ class LissajousPane extends CanvasPane {
             varying vec2 tex_position;
 
             uniform mat4 my_matrix;
+            uniform float z_position;
 
             void main() {
                 tex_position = a_position * 0.5 + 0.5;
-                gl_Position = my_matrix * vec4(a_position, 1.0, 1.0);
+                gl_Position = my_matrix * vec4(a_position, z_position, 1.0);
             }
         `, `
             precision mediump float;
@@ -145,6 +151,7 @@ class LissajousPane extends CanvasPane {
         ], [
             'texture',
             'my_matrix',
+            'z_position',
         ]);
 
         this.inst_ext = this.gl.getExtension('ANGLE_instanced_arrays');
@@ -152,8 +159,8 @@ class LissajousPane extends CanvasPane {
         if (!this.inst_ext)
             alert('ANGLE_instanced_arrays not supported');
 
-        gl.enable(gl.DEPTH_TEST);
         gl.enable(gl.BLEND);
+        gl.disable(gl.DEPTH_TEST);
 
         gl.cullFace(gl.BACK);
         gl.clearColor(0, 0, 0, 0);
@@ -180,7 +187,12 @@ class LissajousPane extends CanvasPane {
         gl.bufferData(gl.ARRAY_BUFFER, this.quad_vertices, gl.STATIC_DRAW);
 
         this.frame_ico_index_buffer = gl.createBuffer();
-        this.texture = loadTexture(gl, `data:image/png;base64,${window['graph-texture']}`);
+        this.texture = loadTexture(gl, `data:image/png;base64,${window['graph-texture']}`, gl.TEXTURE0, true);
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
         this.ring = {
             buffer: gl.createBuffer(),
@@ -189,18 +201,31 @@ class LissajousPane extends CanvasPane {
             write_head: 0,
             read_head: 0,
         };
+
+        this.heatmap = new HeatMapRenderer(gl, this.inst_ext, this.ring);
+        this.heatmap_fb = gl.createFramebuffer();
+        this.heatmap_tex = gl.createTexture();
+        this.heatmap_size = 1024;
+
+        this.updateHeatmapSize();
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.heatmap_fb);
+        gl.bindTexture(gl.TEXTURE_2D, this.heatmap_tex);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.heatmap_tex, 0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
 
-    onResize() {
-        super.onResize();
-
+    updateHeatmapSize() {
         const gl = this.gl;
-        const cv = this.canvas;
 
-        gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+        gl.bindTexture(gl.TEXTURE_2D, this.heatmap_tex);
 
-        gl.useProgram(this.sample_program.program);
-        gl.uniform2f(this.sample_program.uniforms.viewport_size, cv.width, cv.height);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.heatmap_size, this.heatmap_size, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
     }
 
     setRingSize(num_frames) {
@@ -277,12 +302,71 @@ class LissajousPane extends CanvasPane {
         const gl = this.gl;
 
         this.updateProjection();
+
+        if (this.config.mode === 'heatmap') {
+            this.heatmap.render(this.heatmap_fb, {
+                viewport: {
+                    width: this.heatmap_size,
+                    height: this.heatmap_size,
+                },
+                graph_scale: this.config.graph_scale,
+            });
+        }
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-        this.renderFrames();
+        switch (this.config.mode) {
+            case 'heatmap': {
+                gl.disable(gl.CULL_FACE);
+                this.blitTexture(this.heatmap_tex, 0.9);
 
-        if (!this.config.hide_ui) {
-            this.renderGraph();
+                if (this.config.heatmap_overlay) {
+                    gl.enable(gl.CULL_FACE);
+                    gl.cullFace(gl.BACK);
+                    this.renderFrames();
+                    gl.disable(gl.CULL_FACE);
+                }
+
+                if (!this.config.hide_ui) {
+                    this.blitTexture(this.texture, 1.0);
+                }
+
+                break;
+            }
+
+            case '3d': {
+                gl.enable(gl.CULL_FACE);
+                gl.cullFace(gl.BACK);
+                this.renderFrames();
+
+                if (!this.config.hide_ui) {
+                    gl.disable(gl.CULL_FACE);
+                    this.blitTexture(this.texture, 1.0);
+                }
+
+                break;
+            }
+
+            case '2d': {
+                gl.enable(gl.CULL_FACE);
+                gl.cullFace(gl.BACK);
+                this.renderFrames();
+
+                if (!this.config.hide_ui) {
+                    gl.disable(gl.CULL_FACE);
+                    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+                    this.blitTexture(this.texture, 1.0);
+                }
+
+                break;
+            }
+
+            default: {
+                console.error(`I don't know how to render the mode ${this.config.mode}`);
+            }
         }
     }
 
@@ -296,10 +380,16 @@ class LissajousPane extends CanvasPane {
         const first_samples = ring.max_capacity - read_head;
 
         gl.enable(gl.CULL_FACE);
-        gl.depthFunc(gl.ALWAYS);
-        gl.depthMask(true);
         gl.useProgram(sample_program.program);
         gl.uniform1f(sample_program.uniforms.num_frames, num_frames);
+        gl.uniform2f(sample_program.uniforms.viewport_size, gl.drawingBufferWidth, gl.drawingBufferHeight);
+
+        const config = this.config;
+        gl.uniform1f(sample_program.uniforms.point_scale, config.dots.size);
+        gl.uniform1f(sample_program.uniforms.graph_scale, config.graph_scale);
+
+        const color = config.dots.color;
+        gl.uniform3f(sample_program.uniforms.point_color, color.r, color.g, color.b);
 
         if (ring.write_head - ring.read_head < ring.max_capacity) {
             const x = ring.write_head;
@@ -344,35 +434,24 @@ class LissajousPane extends CanvasPane {
         }
     }
 
-    renderGraph() {
+    blitTexture(texture, z_position) {
         const gl = this.gl;
-        const texture_program = this.texture_program;
+        const tex_program = this.texture_program;
 
-        gl.useProgram(texture_program.program);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        gl.disable(gl.CULL_FACE);
-        gl.depthFunc(gl.LESS);
+        gl.useProgram(tex_program.program);
 
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, this.texture);
-        gl.uniform1i(texture_program.uniforms.texture, 0);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.uniform1i(tex_program.uniforms.texture, 0);
+
+        z_position = typeof z_position === 'number' ? z_position : 0;
+        gl.uniform1f(tex_program.uniforms.z_position, z_position);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.quad_buffer);
-        gl.enableVertexAttribArray(texture_program.attribs.a_position);
-        gl.vertexAttribPointer(texture_program.attribs.a_position, 2, gl.FLOAT, false, 0, 0);
-        this.inst_ext.vertexAttribDivisorANGLE(texture_program.attribs.a_position, 0);
+        gl.enableVertexAttribArray(tex_program.attribs.a_position);
+        gl.vertexAttribPointer(tex_program.attribs.a_position, 2, gl.FLOAT, false, 0, 0);
 
         gl.drawArrays(gl.TRIANGLE_FAN, 0, this.quad_vertices.length / 2);
-    }
-
-    setPointSize(size) {
-        this.gl.useProgram(this.sample_program.program);
-        this.gl.uniform1f(this.sample_program.uniforms.point_scale, size);
-    }
-
-    setPointColor(r, g, b) {
-        this.gl.useProgram(this.sample_program.program);
-        this.gl.uniform3f(this.sample_program.uniforms.point_color, r, g, b);
     }
 
     setGraphScale(scale_factor) {
@@ -415,6 +494,223 @@ class LissajousPane extends CanvasPane {
 
         gl.useProgram(texture_program.program);
         gl.uniformMatrix4fv(texture_program.uniforms.my_matrix, false, matrix);
+    }
+
+}
+
+class HeatMapRenderer {
+
+    constructor(gl, inst_ext, ring) {
+        this.gl = gl;
+        this.inst_ext = inst_ext;
+        this.ring = ring;
+
+        this.config = {
+            dots: {
+                size: 0.01,
+            },
+            tonemapping: {
+                gamma: 0.4,
+                exposure: 1.1,
+            },
+            scale_y: 6 / 6,
+            blur_offset: {
+                x: 0.01,
+                y: 0.01,
+            },
+        };
+
+        this.program = webglProgram(gl, `
+            precision mediump float;
+
+            attribute vec2 vertex_pos, signal_frame;
+            uniform vec2 viewport;
+            uniform float dot_scale, graph_scale;
+            varying vec2 tex_pos;
+
+            void main() {
+                vec2 resized = vertex_pos * dot_scale;
+                vec2 position = signal_frame.yx * graph_scale + resized;
+                tex_pos = vertex_pos;
+                gl_Position = vec4(position, 0.0, 1.0);
+            }
+        `, `
+            precision mediump float;
+            varying vec2 tex_pos;
+
+            #define SQRT2 1.414213
+
+            void main() {
+                float intensity = distance(tex_pos * 1.2, vec2(0));
+                intensity = clamp(intensity, 0.0, 1.0);
+
+                gl_FragColor = vec4(vec3(1.0), 1.0 - intensity);
+            }
+        `, [
+            'vertex_pos',
+            'signal_frame',
+        ], [
+            'viewport',
+            'dot_scale',
+            'graph_scale',
+        ]);
+
+        this.heat_program = webglProgram(gl, `
+            precision mediump float;
+
+            attribute vec2 vertex_pos;
+            varying vec2 tex_pos;
+
+            void main() {
+                tex_pos = (vertex_pos + 1.0) / 2.0;
+                gl_Position = vec4(vertex_pos, 0.0, 1.0);
+            }
+        `, `
+            precision mediump float;
+
+            varying vec2 tex_pos;
+            uniform sampler2D texture, heatmap_scale;
+            uniform float gamma, exposure, scale_y;
+            uniform vec2 blur_offset;
+
+            float reinhardToneMapping(float value) {
+                value *= exposure / (1.0 + value / exposure);
+                value = pow(value, 1.0 / gamma);
+                return value;
+            }
+
+            void main() {
+                vec2 offset = blur_offset;
+                float intensity = 0.0;
+
+                float corner = 0.0625;
+                float adjacent = 0.125;
+                float center = 0.25;
+
+                intensity += texture2D(texture, tex_pos + vec2(-offset.x, -offset.y)).a * corner;
+                intensity += texture2D(texture, tex_pos + vec2(0.0, -offset.y)).a * adjacent;
+                intensity += texture2D(texture, tex_pos + vec2(offset.x, -offset.y)).a * corner;
+
+                intensity += texture2D(texture, tex_pos + vec2(-offset.x, 0.0)).a * adjacent;
+                intensity += texture2D(texture, tex_pos + vec2(0.0, 0.0)).a * center;
+                intensity += texture2D(texture, tex_pos + vec2(offset.x, 0.0)).a * corner;
+
+                intensity += texture2D(texture, tex_pos + vec2(-offset.x, offset.y)).a * corner;
+                intensity += texture2D(texture, tex_pos + vec2(0.0, offset.y)).a * adjacent;
+                intensity += texture2D(texture, tex_pos + vec2(offset.x, offset.y)).a * corner;
+
+                intensity = reinhardToneMapping(intensity);
+
+                float scale_pos = 1.0 - intensity;
+                gl_FragColor = texture2D(heatmap_scale, vec2(scale_pos, scale_y));
+            }
+        `, [
+            'vertex_pos',
+        ], [
+            'texture',
+            'heatmap_scale',
+            'gamma',
+            'exposure',
+            'scale_y',
+            'blur_offset',
+        ]);
+
+        this.heatmap_scale_tex = loadTexture(gl, `data:image/png;base64,${window['heatmap-scale']}`, gl.TEXTURE1);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+        this.sample_fb = gl.createFramebuffer();
+        this.sample_tex = gl.createTexture();
+        this.sample_fb_size = 256;
+
+        const ext = gl.getExtension('OES_texture_float');
+        if (!ext) alert('OES_texture_float not supported');
+
+        const linear_ext = gl.getExtension('OES_texture_float_linear');
+        if (!linear_ext) alert('OES_texture_float_linear not supported');
+        const v = linear_ext ? gl.LINEAR : gl.NEAREST;
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.sample_tex);
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, v);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, v);
+
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.sample_fb_size, this.sample_fb_size, 0, gl.RGBA, gl.FLOAT, null);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.sample_fb);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.sample_tex, 0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        const quad_vertices = new Float32Array([-1, -1, -1, 1, 1, 1, 1, -1]);
+        this.quad_buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.quad_buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, quad_vertices, gl.STATIC_DRAW);
+    }
+
+    render(framebuffer, outer_config) {
+        const gl = this.gl;
+        const ring = this.ring;
+        const p = this.program;
+        const inst_ext = this.inst_ext;
+        const config = this.config;
+
+        gl.enable(gl.CULL_FACE);
+        gl.cullFace(gl.FRONT);
+        gl.enable(gl.BLEND);
+
+        // Additive blending
+        gl.blendFunc(gl.ONE, gl.ONE);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.sample_fb);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.useProgram(p.program);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.quad_buffer);
+        gl.enableVertexAttribArray(p.attribs.vertex_pos);
+        gl.vertexAttribPointer(p.attribs.vertex_pos, 2, gl.FLOAT, false, byteCount(F32, 2), 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, ring.buffer);
+        gl.enableVertexAttribArray(p.attribs.signal_frame);
+        gl.vertexAttribPointer(p.attribs.signal_frame, 2, gl.FLOAT, false, byteCount(F32, 2), 0);
+        inst_ext.vertexAttribDivisorANGLE(p.attribs.signal_frame, 1);
+
+        gl.uniform1f(p.uniforms.dot_scale, config.dots.size);
+        gl.uniform1f(p.uniforms.graph_scale, outer_config.graph_scale);
+        gl.uniform2f(p.uniforms.viewport, this.sample_fb_size, this.sample_fb_size);
+
+        const instance_count = ring.max_capacity / 2;
+        gl.viewport(0, 0, this.sample_fb_size, this.sample_fb_size);
+        inst_ext.drawArraysInstancedANGLE(gl.TRIANGLE_FAN, 0, 4, instance_count);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        gl.viewport(0, 0, outer_config.viewport.width, outer_config.viewport.height);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        gl.useProgram(this.heat_program.program);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.sample_tex);
+        gl.uniform1i(this.heat_program.uniforms.texture, 0);
+
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, this.heatmap_scale_tex);
+        gl.uniform1i(this.heat_program.uniforms.heatmap_scale, 1);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.quad_buffer);
+        gl.enableVertexAttribArray(this.heat_program.attribs.vertex_pos);
+        gl.vertexAttribPointer(this.heat_program.attribs.vertex_pos, 2, gl.FLOAT, false, byteCount(F32, 2), 0);
+
+        gl.uniform1f(this.heat_program.uniforms.gamma, config.tonemapping.gamma);
+        gl.uniform1f(this.heat_program.uniforms.exposure, config.tonemapping.exposure);
+        gl.uniform1f(this.heat_program.uniforms.scale_y, config.scale_y);
+        gl.uniform2f(this.heat_program.uniforms.blur_offset, config.blur_offset.x, config.blur_offset.y);
+
+        gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
     }
 
 }
