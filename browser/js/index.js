@@ -168,7 +168,7 @@ function onThemeChange(new_theme) {
 }
 
 function onDpiChange() {
-    lissajos_pane.onResize();
+    lissajous_pane.onResize();
     waterfall_pane.onResize();
 }
 
