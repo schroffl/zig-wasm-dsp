@@ -73,15 +73,11 @@ class WaterfallPane extends CanvasPane {
         `, `
             precision highp float;
 
-            varying float volume;
-            varying float frequency;
+            varying float volume, frequency;
+            uniform sampler2D heat_scale;
 
             void main() {
-                float r = 0.5 + frequency * 0.3;
-                float g = volume;
-
-                vec3 color = vec3(g, r, 0.3);
-                gl_FragColor = vec4(color, 1.0);
+                gl_FragColor = texture2D(heat_scale, vec2(1.0 - volume, 0.0));
             }
         `, [
             'a_position',
@@ -89,7 +85,14 @@ class WaterfallPane extends CanvasPane {
         ], [
             'proj_matrix',
             'db_bounds',
+            'heat_scale',
         ]);
+
+        this.heatmap_scale_tex = loadTexture(gl, `data:image/png;base64,${window['heatmap-scale']}`, gl.TEXTURE0);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
         gl.enable(gl.DEPTH_TEST);
         gl.enable(gl.CULL_FACE);
@@ -225,6 +228,10 @@ class WaterfallPane extends CanvasPane {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.mesh_buffer);
         gl.enableVertexAttribArray(waterfall_program.attribs.a_position);
         gl.vertexAttribPointer(waterfall_program.attribs.a_position, 3, gl.FLOAT, false, byteCount(F32, this.vertex_size), 0);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.heatmap_scale_tex);
+        gl.uniform1i(waterfall_program.uniforms.heat_scale, 0);
 
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.index_buffer);
         gl.drawElements(gl.TRIANGLES, this.index_count, gl.UNSIGNED_SHORT, 0);
