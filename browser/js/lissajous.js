@@ -673,6 +673,7 @@ class HeatMapRenderer {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.quad_buffer);
         gl.enableVertexAttribArray(p.attribs.vertex_pos);
         gl.vertexAttribPointer(p.attribs.vertex_pos, 2, gl.FLOAT, false, byteCount(F32, 2), 0);
+        inst_ext.vertexAttribDivisorANGLE(p.attribs.vertex_pos, 0);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, ring.buffer);
         gl.enableVertexAttribArray(p.attribs.signal_frame);
