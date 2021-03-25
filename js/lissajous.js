@@ -423,12 +423,14 @@ class LissajousPane extends CanvasPane {
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.ico_index_buffer);
             gl.enableVertexAttribArray(sample_program.attribs.a_position);
             gl.vertexAttribPointer(sample_program.attribs.a_position, 3, gl.FLOAT, false, 0, 0);
+            inst_ext.vertexAttribDivisorANGLE(sample_program.attribs.a_position, 0);
 
             inst_ext.drawElementsInstancedANGLE(gl.TRIANGLES, this.icosahedron.indices.length, gl.UNSIGNED_SHORT, 0, instance_count);
         } else {
             gl.bindBuffer(gl.ARRAY_BUFFER, this.circle_vertex_buffer);
             gl.enableVertexAttribArray(sample_program.attribs.a_position);
             gl.vertexAttribPointer(sample_program.attribs.a_position, 3, gl.FLOAT, false, 0, 0);
+            inst_ext.vertexAttribDivisorANGLE(sample_program.attribs.a_position, 0);
 
             inst_ext.drawArraysInstancedANGLE(gl.TRIANGLE_FAN, 0, this.circle.length / 3, instance_count);
         }
@@ -450,6 +452,7 @@ class LissajousPane extends CanvasPane {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.quad_buffer);
         gl.enableVertexAttribArray(tex_program.attribs.a_position);
         gl.vertexAttribPointer(tex_program.attribs.a_position, 2, gl.FLOAT, false, 0, 0);
+        this.inst_ext.vertexAttribDivisorANGLE(tex_program.attribs.a_position, 0);
 
         gl.drawArrays(gl.TRIANGLE_FAN, 0, this.quad_vertices.length / 2);
     }
@@ -705,6 +708,7 @@ class HeatMapRenderer {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.quad_buffer);
         gl.enableVertexAttribArray(this.heat_program.attribs.vertex_pos);
         gl.vertexAttribPointer(this.heat_program.attribs.vertex_pos, 2, gl.FLOAT, false, byteCount(F32, 2), 0);
+        inst_ext.vertexAttribDivisorANGLE(this.heat_program.attribs.vertex_pos, 0);
 
         gl.uniform1f(this.heat_program.uniforms.gamma, config.tonemapping.gamma);
         gl.uniform1f(this.heat_program.uniforms.exposure, config.tonemapping.exposure);
