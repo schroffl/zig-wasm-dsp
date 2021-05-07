@@ -273,6 +273,19 @@ function onUserUpload() {
     });
 }
 
+function cycleLissajousMode(reverse) {
+    const modes = ['3d', '2d', 'heatmap'];
+    const idx = modes.indexOf(lissajous_pane.config.mode);
+
+    let next_idx = idx >= modes.length - 1 ? 0 : idx + 1;
+
+    if (reverse) {
+        next_idx = idx < 1 ? modes.length - 1 : idx - 1;
+    }
+
+    lissajous_pane.config.mode = modes[next_idx];
+}
+
 CustomUI.registerHotkeys(window, {
     'h': () => toggleUI(),
     'k': ' ',
@@ -288,6 +301,8 @@ CustomUI.registerHotkeys(window, {
     '?': () => console.log('TODO: Show info dialog'),
     'Escape': () => document.activeElement && document.activeElement.blur(),
     'q': () => lissajous_pane.resetRing(),
+    't': () => cycleLissajousMode(),
+    'T': () => cycleLissajousMode(true),
 });
 
 CustomUI.knob(mid_side_knob, {
