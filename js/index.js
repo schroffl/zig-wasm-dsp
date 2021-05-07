@@ -273,6 +273,24 @@ function onUserUpload() {
     });
 }
 
+function cycleLissajousMode(reverse) {
+    const modes = ['3d', '2d', 'heatmap'];
+    const idx = modes.indexOf(lissajous_pane.config.mode);
+
+    let next_idx = idx >= modes.length - 1 ? 0 : idx + 1;
+
+    if (reverse) {
+        next_idx = idx < 1 ? modes.length - 1 : idx - 1;
+    }
+
+    lissajous_pane.config.mode = modes[next_idx];
+}
+
+function toggleDarkMode() {
+    const has_dark_mode = document.body.classList.contains('dark-mode');
+    onThemeChange(has_dark_mode ? 'light' : 'dark');
+}
+
 CustomUI.registerHotkeys(window, {
     'h': () => toggleUI(),
     'k': ' ',
@@ -288,6 +306,9 @@ CustomUI.registerHotkeys(window, {
     '?': () => console.log('TODO: Show info dialog'),
     'Escape': () => document.activeElement && document.activeElement.blur(),
     'q': () => lissajous_pane.resetRing(),
+    't': () => cycleLissajousMode(),
+    'T': () => cycleLissajousMode(true),
+    'p': () => toggleDarkMode(),
 });
 
 CustomUI.knob(mid_side_knob, {
@@ -303,10 +324,7 @@ fullscreen_button.addEventListener('click', () => toggleFullscreen());
 
 upload_button.addEventListener('click', () => onUserUpload());
 
-light_toggle_button.addEventListener('click', () => {
-    const has_dark_mode = document.body.classList.contains('dark-mode');
-    onThemeChange(has_dark_mode ? 'light' : 'dark');
-});
+light_toggle_button.addEventListener('click', () => toggleDarkMode());
 
 const window_keystate = CustomUI.trackKeystate(window);
 
