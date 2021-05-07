@@ -10,7 +10,7 @@ jobs:
         with:
           version: master
       - name: Build
-        run: "zig build -Drelease-fast && mkdir public && cp -R zig-cache/html/* public/"
+        run: "zig build -Drelease-fast && mkdir public && cp -R zig-out/html/* public/"
       - name: Deploy to GitHub Pages
         if: success()
         uses: crazy-max/ghaction-github-pages@v1

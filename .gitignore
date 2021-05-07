@@ -1,4 +1,5 @@
 .DS_Store
 .tasks
 zig-cache
+zig-out
 tags

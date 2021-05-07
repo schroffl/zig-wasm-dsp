@@ -90,11 +90,12 @@ const ResourceStep = struct {
             const content = try in_file.readToEndAlloc(self.builder.allocator, stat.size);
             defer self.builder.allocator.free(content);
 
-            const base64_len = std.base64.Base64Encoder.calcSize(content.len);
+            const enc = std.base64.standard_encoder;
+            const base64_len = enc.calcSize(content.len);
             const base64_buffer = try self.builder.allocator.alloc(u8, base64_len);
             defer self.builder.allocator.free(base64_buffer);
 
-            const final_base64 = std.base64.standard_encoder.encode(base64_buffer, content);
+            const final_base64 = enc.encode(base64_buffer, content);
 
             try out_file.writeAll("window[\"");
             try out_file.writeAll(entry.key);
