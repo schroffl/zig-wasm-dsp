@@ -286,6 +286,11 @@ function cycleLissajousMode(reverse) {
     lissajous_pane.config.mode = modes[next_idx];
 }
 
+function toggleDarkMode() {
+    const has_dark_mode = document.body.classList.contains('dark-mode');
+    onThemeChange(has_dark_mode ? 'light' : 'dark');
+}
+
 CustomUI.registerHotkeys(window, {
     'h': () => toggleUI(),
     'k': ' ',
@@ -303,6 +308,7 @@ CustomUI.registerHotkeys(window, {
     'q': () => lissajous_pane.resetRing(),
     't': () => cycleLissajousMode(),
     'T': () => cycleLissajousMode(true),
+    'p': () => toggleDarkMode(),
 });
 
 CustomUI.knob(mid_side_knob, {
@@ -318,10 +324,7 @@ fullscreen_button.addEventListener('click', () => toggleFullscreen());
 
 upload_button.addEventListener('click', () => onUserUpload());
 
-light_toggle_button.addEventListener('click', () => {
-    const has_dark_mode = document.body.classList.contains('dark-mode');
-    onThemeChange(has_dark_mode ? 'light' : 'dark');
-});
+light_toggle_button.addEventListener('click', () => toggleDarkMode());
 
 const window_keystate = CustomUI.trackKeystate(window);
 
