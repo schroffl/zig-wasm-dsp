@@ -4,7 +4,9 @@ const allocator = std.heap.page_allocator;
 extern "debug" fn js_err(ptr: [*]const u8, len: usize) void;
 extern "debug" fn js_log(ptr: [*]const u8, len: usize) void;
 
-pub fn panic(err: []const u8, maybe_trace: ?*std.builtin.StackTrace) noreturn {
+pub fn panic(err: []const u8, maybe_trace: ?*std.builtin.StackTrace, ret_addr: ?usize) noreturn {
+    _ = ret_addr;
+    _ = maybe_trace;
     js_err(err.ptr, err.len);
     while (true) @breakpoint();
 }
@@ -29,7 +31,7 @@ pub fn log(
     const prefix2 = if (scope == .default) ": " else "(" ++ @tagName(scope) ++ "): ";
     const format = level_txt ++ prefix2 ++ fmt;
 
-    const log_buffer = std.fmt.allocPrint(allocator, format, args) catch |err| {
+    const log_buffer = std.fmt.allocPrint(allocator, format, args) catch {
         const emerg_msg = "Failed to format log message";
         js_err(emerg_msg, emerg_msg.len);
         return;

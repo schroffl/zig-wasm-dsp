@@ -1,107 +1,57 @@
 const std = @import("std");
-const Builder = @import("std").build.Builder;
-const HTMLStep = @import("./src/build_html.zig").HTMLStep;
 
-pub fn build(b: *Builder) void {
-    // Standard release options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
-    const mode = b.standardReleaseOptions();
+pub fn build(b: *std.Build) void {
+    const optimize = b.standardOptimizeOption(.{});
 
-    const install_dir = std.build.InstallDir{ .Custom = "html" };
-    const copy_step = b.addInstallDirectory(.{
-        .source_dir = "browser",
-        .install_dir = install_dir,
-        .install_subdir = "",
-    });
-
-    const resource_step = ResourceStep.init(b, "resources", install_dir);
-    resource_step.addResource("worklet-wrapper", "resources/worklet.js");
-    resource_step.addResource("graph-texture", "resources/lissajous-graph.png");
-    resource_step.addResource("heatmap-scale", "resources/hms.jpg");
-
-    const wasm_step = resource_step.addWasmResource("zig-wasm-dsp", "src/main.zig");
-    wasm_step.setBuildMode(mode);
-
-    resource_step.step.dependOn(&copy_step.step);
-    b.default_step.dependOn(&resource_step.step);
-}
-
-const ResourceStep = struct {
-    builder: *Builder,
-    step: std.build.Step,
-    install_dir: std.build.InstallDir,
-    filename: []const u8,
-    resources: std.StringHashMap([]const u8),
-    wasm_resources: std.StringHashMap(*std.build.LibExeObjStep),
-
-    pub fn init(b: *Builder, filename: []const u8, dir: std.build.InstallDir) *ResourceStep {
-        var self = b.allocator.create(ResourceStep) catch unreachable;
-
-        self.builder = b;
-        self.step = std.build.Step.init(.Custom, "wrap-resources", b.allocator, make);
-        self.install_dir = dir;
-        self.filename = filename;
-        self.resources = std.StringHashMap([]const u8).init(b.allocator);
-        self.wasm_resources = std.StringHashMap(*std.build.LibExeObjStep).init(b.allocator);
-
-        return self;
-    }
-
-    pub fn addResource(self: *ResourceStep, name: []const u8, file_path: []const u8) void {
-        self.resources.putNoClobber(name, file_path) catch unreachable;
-    }
-
-    pub fn addWasmResource(self: *ResourceStep, name: []const u8, root_src: []const u8) *std.build.LibExeObjStep {
-        var lib_step = self.builder.addStaticLibrary(name, root_src);
-        lib_step.setTarget(.{
-            .cpu_arch = .wasm32,
-            .os_tag = .freestanding,
+    const bundle_step = blk: {
+        const bundle_exe = b.addExecutable(.{
+            .name = "bundle-resources",
+            .root_source_file = .{ .path = "./bundle.zig" },
         });
 
-        self.step.dependOn(&lib_step.step);
-        self.wasm_resources.putNoClobber(name, lib_step) catch unreachable;
-        return lib_step;
+        const lib_step = b.addSharedLibrary(.{
+            .name = "zig-wasm-dsp",
+            .root_source_file = .{ .path = "src/main.zig" },
+            .optimize = optimize,
+            .target = .{
+                .cpu_arch = .wasm32,
+                .os_tag = .freestanding,
+            },
+        });
+
+        lib_step.rdynamic = true;
+
+        const bstep = b.addRunArtifact(bundle_exe);
+
+        bstep.addArg("worklet-wrapper");
+        bstep.addFileArg(.{ .path = "resources/worklet.js" });
+
+        bstep.addArg("graph-texture");
+        bstep.addFileArg(.{ .path = "resources/lissajous-graph.png" });
+
+        bstep.addArg("heatmap-scale");
+        bstep.addFileArg(.{ .path = "resources/hms.jpg" });
+
+        bstep.addArg(lib_step.name);
+        bstep.addArtifactArg(lib_step);
+
+        break :blk bstep;
+    };
+
+    {
+        const install_dir = std.Build.InstallDir{ .custom = "html" };
+        const install_step = b.getInstallStep();
+
+        const bundle_output = bundle_step.captureStdOut();
+        const install_bundle = b.addInstallFileWithDir(bundle_output, install_dir, "resources.js");
+
+        const install_browser_files = b.addInstallDirectory(.{
+            .source_dir = .{ .path = "browser" },
+            .install_dir = install_dir,
+            .install_subdir = "",
+        });
+
+        install_step.dependOn(&install_bundle.step);
+        install_step.dependOn(&install_browser_files.step);
     }
-
-    fn make(step: *std.build.Step) !void {
-        var self = @fieldParentPtr(ResourceStep, "step", step);
-        var wasm_it = self.wasm_resources.iterator();
-
-        while (wasm_it.next()) |wasm_entry| {
-            const lib_output_path = wasm_entry.value.getOutputPath();
-            self.addResource(wasm_entry.key, lib_output_path);
-        }
-
-        var resource_it = self.resources.iterator();
-
-        const install_filename = self.builder.fmt("{s}.js", .{self.filename});
-        const install_path = self.builder.getInstallPath(self.install_dir, install_filename);
-        var out_file = try std.fs.cwd().createFile(install_path, .{});
-        defer out_file.close();
-
-        var build_dir = try std.fs.cwd().openDir(self.builder.build_root, .{});
-        defer build_dir.close();
-
-        while (resource_it.next()) |entry| {
-            var in_file = try build_dir.openFile(entry.value, .{ .read = true });
-            defer in_file.close();
-
-            const stat = try in_file.stat();
-            const content = try in_file.readToEndAlloc(self.builder.allocator, stat.size);
-            defer self.builder.allocator.free(content);
-
-            const enc = std.base64.standard_encoder;
-            const base64_len = enc.calcSize(content.len);
-            const base64_buffer = try self.builder.allocator.alloc(u8, base64_len);
-            defer self.builder.allocator.free(base64_buffer);
-
-            const final_base64 = enc.encode(base64_buffer, content);
-
-            try out_file.writeAll("window[\"");
-            try out_file.writeAll(entry.key);
-            try out_file.writeAll("\"] = \"");
-            try out_file.writeAll(final_base64);
-            try out_file.writeAll("\";\n");
-        }
-    }
-};
+}
