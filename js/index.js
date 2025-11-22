@@ -127,12 +127,12 @@ async function selectAudioDevice(constraint) {
 
 function gotStream(stream) {
     if (media_stream_node) {
-        media_stream_node.disconnect();
+        disconnectIgnoreError(media_stream_node);
     }
 
     media_stream_node = audio_ctx.createMediaStreamSource(stream);
 
-    audio_source.disconnect(gain_node);
+    disconnectIgnoreError(audio_source, gain_node);
     media_stream_node.connect(gain_node);
 
     audio_ctx.resume();
@@ -391,7 +391,7 @@ function onUserUpload() {
         audio_elem.pause();
 
         if (media_stream_node) {
-            media_stream_node.disconnect();
+            disconnectIgnoreError(media_stream_node);
             media_stream_node = undefined;
         }
 
@@ -403,6 +403,13 @@ function onUserUpload() {
 
         audio_ctx.resume();
     });
+}
+
+function disconnectIgnoreError(node, ...args) {
+    try {
+        node.disconnect(...args);
+    } catch (_) {
+    }
 }
 
 function cycleLissajousMode(reverse) {
