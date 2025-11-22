@@ -8,6 +8,7 @@
         <link rel="stylesheet" href="css/colorscheme.css">
     </head>
     <body>
+        <script src="https://cdn.jsdelivr.net/npm/lil-gui@0.16"></script>
         <aside>
             <noscript>
                 For obvious reasons this page requires JavaScript to be enabled.
@@ -20,6 +21,8 @@ noscript.parentElement.removeChild(noscript);
 
         <main id="main-content">
             <div class="ui-layer">
+                <div id="lil_gui_host"></div>
+
                 <div class="left-side">
                     <div id="mid_side_knob" tabindex="1"></div>
                     <!--<div id="lfo_freq_knob" tabindex="2"></div>
@@ -31,7 +34,6 @@ noscript.parentElement.removeChild(noscript);
                     <div id="size_knob" class="labels-left" tabindex="5"></div>
                     <div id="buffer_size_knob" class="labels-left" tabindex="6"></div>
                 </div>
-
 
                 <div class="media-controls">
                     <div id="time_slider" tabindex="0"></div>
