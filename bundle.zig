@@ -11,7 +11,9 @@ pub fn main() !void {
     const stdout = std.io.getStdOut();
     var out = stdout.writer();
 
-    var args = std.process.args();
+    var args = try std.process.argsWithAllocator(ally);
+    defer args.deinit();
+
     var skip_n_args: usize = 1;
 
     while (args.next()) |key| {

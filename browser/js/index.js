@@ -6,9 +6,137 @@ const AudioCtx = window['AudioContext'] || webkitAudioContext;
 const audio_ctx = new AudioCtx();
 const audio_source = audio_ctx.createMediaElementSource(audio_elem);
 const gain_node = audio_ctx.createGain();
+const out_gain_node = audio_ctx.createGain();
+let media_stream_node = undefined;
 
 let setProcessorParam = (name, value) => console.debug(`${name} = ${value} was ignored`);
 let custom_node = null;
+
+const gui = new lil.GUI({ container: document.querySelector('#lil_gui_host') });
+
+const settings = {
+    mode: '3d',
+    dot_size: 1,
+    heatmap_dot_size: 0.01,
+    dot_color: [0.572, 0.909, 0.206],
+    graph_scale: 1,
+    input_device: null,
+    gain: 1,
+    monitor_volume: 1.0,
+    ring_size: 8192,
+    ring_size_seconds: 8192 / audio_ctx.sampleRate,
+    exposure: 1.1,
+    gamma: 0.4,
+
+    loadInputs() {
+        initInputDevices();
+    },
+
+    async uploadFile() {
+        onUserUpload();
+    },
+};
+
+const lissajous_settings = gui.addFolder('XY Plot');
+
+lissajous_settings.add(settings, 'mode', { '3D': '3d', '2D': '2d', 'Heatmap': 'heatmap' });
+
+const ring_size_ctrl = lissajous_settings.add(settings, 'ring_size', 1, audio_ctx.sampleRate * 20, 1).name('Buffer Size');
+
+ring_size_ctrl.onChange(value => {
+    lissajous_pane.setRingSize(value);
+});
+
+lissajous_settings.add(settings, 'dot_size', 0.1, 20, 0.1).name('Dot size');
+lissajous_settings.addColor(settings, 'dot_color').name('Dot color');
+lissajous_settings.add(settings, 'graph_scale', 0, 10, 0.1).name('Scale');
+
+const heatmap_settings = lissajous_settings.addFolder('Heatmap');
+heatmap_settings.add(settings, 'exposure', 0.1, 3).name('Exposure');
+heatmap_settings.add(settings, 'gamma', 0.1, 3).name('Gamma');
+heatmap_settings.add(settings, 'heatmap_dot_size', 0, 0.5).name('Dot size');
+
+const input_settings = gui.addFolder('Audio');
+input_settings.add(settings, 'gain', 0, 10, 0.01).name('Gain').onChange(value => gain_node.gain.value = value);
+input_settings.add(settings, 'monitor_volume', 0, 1, 0.01).name('Monitor Volume').onChange((value) => out_gain_node.gain.value = value);
+input_settings.add(settings, 'uploadFile').name('Upload Audio File');
+const loadInputBtn = input_settings.add(settings, 'loadInputs').name('Load input devices');
+
+async function initInputDevices() {
+    const device = await selectAudioDevice(true);
+
+    settings.input_device = device.id;
+
+    updateDeviceList();
+
+    let promiseRunning = undefined;
+
+    navigator.mediaDevices.addEventListener('devicechange', async () => {
+        if (promiseRunning) {
+            await promiseRunning;
+            promiseRunning = undefined;
+        }
+
+        console.log('devicechange');
+        promiseRunning = updateDeviceList();       
+    });
+
+    loadInputBtn.destroy();
+}
+
+let input_ui_element;
+
+async function updateDeviceList() {
+    const list = await navigator.mediaDevices.enumerateDevices();
+    const inputs = list.filter(item => item.kind === 'audioinput');
+    const options = inputs.reduce((obj, item) => {
+        obj[item.label] = item.deviceId;
+        return obj;
+    }, {});
+
+    console.log(inputs);
+
+    const selected_device_exists = inputs.find(input => input.deviceId === settings.input_device);
+
+    if (!selected_device_exists) {
+        settings.input_device = inputs[0].deviceId;
+    }
+
+    if (input_ui_element) {
+        input_ui_element.destroy();
+        input_ui_element = undefined;
+    }
+    
+    input_ui_element = input_settings.add(settings, 'input_device', options).name('Input device');
+    input_ui_element.onChange(deviceId => {
+        selectAudioDevice({
+            deviceId: {
+                exact: deviceId,
+            }
+        })
+    });
+}
+
+async function selectAudioDevice(constraint) {
+    const device = await navigator.mediaDevices.getUserMedia({ audio: constraint, video: false });
+
+    gotStream(device);
+
+    return device;
+}
+
+function gotStream(stream) {
+    if (media_stream_node) {
+        media_stream_node.disconnect();
+    }
+
+    media_stream_node = audio_ctx.createMediaStreamSource(stream);
+
+    audio_source.disconnect(gain_node);
+    media_stream_node.connect(gain_node);
+
+    audio_ctx.resume();
+}
 
 function createProcessorNode(onBufferAvailable) {
     if (audio_ctx.audioWorklet) {
@@ -95,8 +223,6 @@ function createLegacyNode(onBufferAvailable) {
     }).then(inst => {
         const params = {};
         const processor = audio_ctx.createScriptProcessor(1024, 2, 2);
-        let lfo_sample = 0;
-        let sample_rate = audio_ctx.sampleRate;
         let split = new Float32Array(processor.bufferSize * 2);
 
         wasm = inst.instance;
@@ -242,7 +368,6 @@ function selectFile(accept, onchange) {
 function toggleUI() {
     const ui_layer = document.querySelector('.ui-layer');
     ui_layer.classList.toggle('hidden');
-    lissajous_pane.config.hide_ui = ui_layer.classList.contains('hidden');
 }
 
 function toggleFullscreen() {
@@ -265,6 +390,13 @@ function onUserUpload() {
         audio_elem.src = window.URL.createObjectURL(file);
         audio_elem.pause();
 
+        if (media_stream_node) {
+            media_stream_node.disconnect();
+            media_stream_node = undefined;
+        }
+
+        audio_source.connect(gain_node);
+
         audio_elem.addEventListener('canplay', () => {
             audio_elem.play();
         }, { once: true });
@@ -275,7 +407,7 @@ function onUserUpload() {
 
 function cycleLissajousMode(reverse) {
     const modes = ['3d', '2d', 'heatmap'];
-    const idx = modes.indexOf(lissajous_pane.config.mode);
+    const idx = modes.indexOf(settings.mode);
 
     let next_idx = idx >= modes.length - 1 ? 0 : idx + 1;
 
@@ -283,7 +415,7 @@ function cycleLissajousMode(reverse) {
         next_idx = idx < 1 ? modes.length - 1 : idx - 1;
     }
 
-    lissajous_pane.config.mode = modes[next_idx];
+    settings.mode = modes[next_idx];
 }
 
 function toggleDarkMode() {
@@ -342,10 +474,20 @@ const loop = animationLoop(t => {
     const dt = t - last_render;
     last_render = t;
 
-    if (!audio_elem.paused) {
+    if (media_stream_node || !audio_elem.paused) {
         analyser_node.getFloatFrequencyData(fft_data);
         waterfall_pane.update(fft_data);
     }
+
+    lissajous_pane.config.mode = settings.mode;
+    lissajous_pane.config.dots.size = settings.dot_size;
+    lissajous_pane.config.graph_scale = settings.graph_scale;
+    lissajous_pane.config.dots.color = { r: settings.dot_color[0], g: settings.dot_color[1], b: settings.dot_color[2] };
+
+    lissajous_pane.heatmap.config.tonemapping.exposure = settings.exposure;
+    lissajous_pane.heatmap.config.tonemapping.gamma = settings.gamma;
+
+    lissajous_pane.heatmap.config.dots.size = settings.heatmap_dot_size;
 
     lissajous_pane.render();
     waterfall_pane.render();
@@ -403,13 +545,14 @@ createProcessorNode(buffer => {
         logged_size = true;
     }
 
-    if (!audio_elem.paused) {
+    if (!audio_elem.paused || media_stream_node) {
         lissajous_pane.update(buffer);
     }
 }).then(processor => {
     audio_source.connect(gain_node);
     gain_node.connect(processor.node);
-    processor.node.connect(audio_ctx.destination);
+    processor.node.connect(out_gain_node);
+    out_gain_node.connect(audio_ctx.destination);
     setProcessorParam = processor.setParam;
     custom_node = processor.node;
 

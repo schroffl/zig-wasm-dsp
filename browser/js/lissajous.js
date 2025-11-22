@@ -4,7 +4,7 @@ class LissajousPane extends CanvasPane {
         super();
 
         this.config = {
-            hide_ui: false,
+            hide_ui: true,
             rotation: { x: 0, y: 0 },
             zoom: 1,
             mode: '3d',

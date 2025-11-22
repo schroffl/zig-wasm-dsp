@@ -311,3 +311,10 @@ main .ui-layer.hidden .media-controls {
 .pane:nth-child(2) {
     border-left: 1px solid #ccc;
 }
+
+#lil_gui_host {
+    position: absolute;
+    pointer-events: all;
+    top: 0px;
+    right: 0px;
+}
