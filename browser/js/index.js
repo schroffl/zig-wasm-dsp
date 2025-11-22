@@ -39,7 +39,7 @@ const settings = {
 
 const lissajous_settings = gui.addFolder('XY Plot');
 
-lissajous_settings.add(settings, 'mode', { '3D': '3d', '2D': '2d', 'Heatmap': 'heatmap' });
+const mode_ctrl = lissajous_settings.add(settings, 'mode', { '3D': '3d', '2D': '2d', 'Heatmap': 'heatmap' });
 
 const ring_size_ctrl = lissajous_settings.add(settings, 'ring_size', 1, audio_ctx.sampleRate * 20, 1).name('Buffer Size');
 
@@ -422,7 +422,7 @@ function cycleLissajousMode(reverse) {
         next_idx = idx < 1 ? modes.length - 1 : idx - 1;
     }
 
-    settings.mode = modes[next_idx];
+    mode_ctrl.setValue(modes[next_idx]);
 }
 
 function toggleDarkMode() {
