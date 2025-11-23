@@ -75,7 +75,14 @@ input_settings.add(settings, 'uploadFile').name('Upload Audio File');
 const loadInputBtn = input_settings.add(settings, 'loadInputs').name('Load input devices');
 
 async function initInputDevices() {
-    const device = await selectAudioDevice(true);
+    const device = await selectAudioDevice({
+        channelCount: {
+            ideal: 2,
+        },
+        sampleRate: {
+            exact: audio_ctx.sampleRate,
+        },
+    });
 
     settings.input_device = device.id;
 
@@ -122,6 +129,12 @@ async function updateDeviceList() {
     input_ui_element = input_settings.add(settings, 'input_device', options).name('Input device');
     input_ui_element.onChange((deviceId) => {
         selectAudioDevice({
+            sampleRate: {
+                exact: audio_ctx.sampleRatem,
+            },
+            channelCount: {
+                ideal: 2,
+            },
             deviceId: {
                 exact: deviceId,
             },
@@ -144,7 +157,7 @@ function gotStream(stream) {
 
     media_stream_node = audio_ctx.createMediaStreamSource(stream);
 
-    disconnectIgnoreError(audio_source, gain_node);
+    disconnectIgnoreError(audio_source);
     media_stream_node.connect(gain_node);
 
     audio_ctx.resume();
