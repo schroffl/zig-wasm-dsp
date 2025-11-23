@@ -1,5 +1,4 @@
 class LissajousPane extends CanvasPane {
-
     constructor() {
         super();
 
@@ -31,30 +30,40 @@ class LissajousPane extends CanvasPane {
                 const multiplier = 0.01;
 
                 this.config.rotation.x = ref.x + diffX * multiplier;
-                this.config.rotation.y = clamp(ref.y - diffY * multiplier, -Math.PI / 2, Math.PI / 2);
+                this.config.rotation.y = clamp(
+                    ref.y - diffY * multiplier,
+                    -Math.PI / 2,
+                    Math.PI / 2,
+                );
             },
-            onend: ref => {
+            onend: (ref) => {
                 document.exitPointerLock();
             },
         });
 
-        this.canvas.addEventListener('wheel', e => {
-            this.config.zoom -= e.deltaY * 0.008;
-            this.config.zoom = clamp(this.config.zoom, 0.2, 50);
+        this.canvas.addEventListener(
+            'wheel',
+            (e) => {
+                this.config.zoom -= e.deltaY * 0.008;
+                this.config.zoom = clamp(this.config.zoom, 0.2, 50);
 
-            e.preventDefault();
-        }, { passive: false });
+                e.preventDefault();
+            },
+            { passive: false },
+        );
 
         this.setRingSize(8192);
     }
 
     glSetup() {
-        const gl = this.gl = this.canvas.getContext('webgl', {
+        const gl = (this.gl = this.canvas.getContext('webgl', {
             premultipliedAlpha: true,
             alpha: true,
-        });
+        }));
 
-        this.sample_program = webglProgram(gl, `
+        this.sample_program = webglProgram(
+            gl,
+            `
             precision mediump float;
 
             #define DEG45 0.7853981
@@ -88,7 +97,8 @@ class LissajousPane extends CanvasPane {
                 gl_PointSize = 2.0;
                 gl_Position = my_matrix * vec4(final, 1.0);
             }
-        `, `
+        `,
+            `
             precision mediump float;
 
             varying float draw_clipped;
@@ -109,20 +119,21 @@ class LissajousPane extends CanvasPane {
 
                 gl_FragColor = vec4(r, g, b, a);
             }
-        `, [
-            'a_position',
-            'signal_frame',
-            'a_frame_index',
-        ], [
-            'viewport_size',
-            'num_frames',
-            'point_color',
-            'point_scale',
-            'graph_scale',
-            'my_matrix',
-        ]);
+        `,
+            ['a_position', 'signal_frame', 'a_frame_index'],
+            [
+                'viewport_size',
+                'num_frames',
+                'point_color',
+                'point_scale',
+                'graph_scale',
+                'my_matrix',
+            ],
+        );
 
-        this.texture_program = webglProgram(gl, `
+        this.texture_program = webglProgram(
+            gl,
+            `
             precision mediump float;
 
             #define DEG45 0.7853981
@@ -137,7 +148,8 @@ class LissajousPane extends CanvasPane {
                 tex_position = a_position * 0.5 + 0.5;
                 gl_Position = my_matrix * vec4(a_position, z_position, 1.0);
             }
-        `, `
+        `,
+            `
             precision mediump float;
 
             varying vec2 tex_position;
@@ -146,18 +158,14 @@ class LissajousPane extends CanvasPane {
             void main() {
                 gl_FragColor = texture2D(texture, tex_position);
             }
-        `, [
-            'a_position',
-        ], [
-            'texture',
-            'my_matrix',
-            'z_position',
-        ]);
+        `,
+            ['a_position'],
+            ['texture', 'my_matrix', 'z_position'],
+        );
 
         this.inst_ext = this.gl.getExtension('ANGLE_instanced_arrays');
 
-        if (!this.inst_ext)
-            alert('ANGLE_instanced_arrays not supported');
+        if (!this.inst_ext) alert('ANGLE_instanced_arrays not supported');
 
         gl.enable(gl.BLEND);
         gl.disable(gl.DEPTH_TEST);
@@ -187,7 +195,12 @@ class LissajousPane extends CanvasPane {
         gl.bufferData(gl.ARRAY_BUFFER, this.quad_vertices, gl.STATIC_DRAW);
 
         this.frame_ico_index_buffer = gl.createBuffer();
-        this.texture = loadTexture(gl, `data:image/png;base64,${window['graph-texture']}`, gl.TEXTURE0, true);
+        this.texture = loadTexture(
+            gl,
+            `data:image/png;base64,${window['graph-texture']}`,
+            gl.TEXTURE0,
+            true,
+        );
 
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -211,7 +224,13 @@ class LissajousPane extends CanvasPane {
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.heatmap_fb);
         gl.bindTexture(gl.TEXTURE_2D, this.heatmap_tex);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.heatmap_tex, 0);
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,
+            gl.COLOR_ATTACHMENT0,
+            gl.TEXTURE_2D,
+            this.heatmap_tex,
+            0,
+        );
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
 
@@ -225,7 +244,17 @@ class LissajousPane extends CanvasPane {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.heatmap_size, this.heatmap_size, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA,
+            this.heatmap_size,
+            this.heatmap_size,
+            0,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            null,
+        );
     }
 
     setRingSize(num_frames) {
@@ -382,7 +411,11 @@ class LissajousPane extends CanvasPane {
         gl.enable(gl.CULL_FACE);
         gl.useProgram(sample_program.program);
         gl.uniform1f(sample_program.uniforms.num_frames, num_frames);
-        gl.uniform2f(sample_program.uniforms.viewport_size, gl.drawingBufferWidth, gl.drawingBufferHeight);
+        gl.uniform2f(
+            sample_program.uniforms.viewport_size,
+            gl.drawingBufferWidth,
+            gl.drawingBufferHeight,
+        );
 
         const config = this.config;
         gl.uniform1f(sample_program.uniforms.point_scale, config.dots.size);
@@ -408,12 +441,26 @@ class LissajousPane extends CanvasPane {
 
         gl.bindBuffer(gl.ARRAY_BUFFER, ring.buffer);
         gl.enableVertexAttribArray(sample_program.attribs.signal_frame);
-        gl.vertexAttribPointer(sample_program.attribs.signal_frame, 2, gl.FLOAT, false, byteCount(F32, 2), byteCount(F32, sample_offset));
+        gl.vertexAttribPointer(
+            sample_program.attribs.signal_frame,
+            2,
+            gl.FLOAT,
+            false,
+            byteCount(F32, 2),
+            byteCount(F32, sample_offset),
+        );
         inst_ext.vertexAttribDivisorANGLE(sample_program.attribs.signal_frame, 1);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.frame_ico_index_buffer);
         gl.enableVertexAttribArray(sample_program.attribs.a_frame_index);
-        gl.vertexAttribPointer(sample_program.attribs.a_frame_index, 1, gl.FLOAT, false, byteCount(F32, 1), byteCount(F32, index_offset));
+        gl.vertexAttribPointer(
+            sample_program.attribs.a_frame_index,
+            1,
+            gl.FLOAT,
+            false,
+            byteCount(F32, 1),
+            byteCount(F32, index_offset),
+        );
         inst_ext.vertexAttribDivisorANGLE(sample_program.attribs.a_frame_index, 1);
 
         const instance_count = num_samples / 2;
@@ -425,14 +472,25 @@ class LissajousPane extends CanvasPane {
             gl.vertexAttribPointer(sample_program.attribs.a_position, 3, gl.FLOAT, false, 0, 0);
             inst_ext.vertexAttribDivisorANGLE(sample_program.attribs.a_position, 0);
 
-            inst_ext.drawElementsInstancedANGLE(gl.TRIANGLES, this.icosahedron.indices.length, gl.UNSIGNED_SHORT, 0, instance_count);
+            inst_ext.drawElementsInstancedANGLE(
+                gl.TRIANGLES,
+                this.icosahedron.indices.length,
+                gl.UNSIGNED_SHORT,
+                0,
+                instance_count,
+            );
         } else {
             gl.bindBuffer(gl.ARRAY_BUFFER, this.circle_vertex_buffer);
             gl.enableVertexAttribArray(sample_program.attribs.a_position);
             gl.vertexAttribPointer(sample_program.attribs.a_position, 3, gl.FLOAT, false, 0, 0);
             inst_ext.vertexAttribDivisorANGLE(sample_program.attribs.a_position, 0);
 
-            inst_ext.drawArraysInstancedANGLE(gl.TRIANGLE_FAN, 0, this.circle.length / 3, instance_count);
+            inst_ext.drawArraysInstancedANGLE(
+                gl.TRIANGLE_FAN,
+                0,
+                this.circle.length / 3,
+                instance_count,
+            );
         }
     }
 
@@ -498,11 +556,9 @@ class LissajousPane extends CanvasPane {
         gl.useProgram(texture_program.program);
         gl.uniformMatrix4fv(texture_program.uniforms.my_matrix, false, matrix);
     }
-
 }
 
 class HeatMapRenderer {
-
     constructor(gl, inst_ext, ring) {
         this.gl = gl;
         this.inst_ext = inst_ext;
@@ -523,7 +579,9 @@ class HeatMapRenderer {
             },
         };
 
-        this.program = webglProgram(gl, `
+        this.program = webglProgram(
+            gl,
+            `
             precision mediump float;
 
             attribute vec2 vertex_pos, signal_frame;
@@ -537,7 +595,8 @@ class HeatMapRenderer {
                 tex_pos = vertex_pos;
                 gl_Position = vec4(position, 0.0, 1.0);
             }
-        `, `
+        `,
+            `
             precision mediump float;
             varying vec2 tex_pos;
 
@@ -549,16 +608,14 @@ class HeatMapRenderer {
 
                 gl_FragColor = vec4(vec3(1.0), 1.0 - intensity);
             }
-        `, [
-            'vertex_pos',
-            'signal_frame',
-        ], [
-            'viewport',
-            'dot_scale',
-            'graph_scale',
-        ]);
+        `,
+            ['vertex_pos', 'signal_frame'],
+            ['viewport', 'dot_scale', 'graph_scale'],
+        );
 
-        this.heat_program = webglProgram(gl, `
+        this.heat_program = webglProgram(
+            gl,
+            `
             precision mediump float;
 
             attribute vec2 vertex_pos;
@@ -568,7 +625,8 @@ class HeatMapRenderer {
                 tex_pos = (vertex_pos + 1.0) / 2.0;
                 gl_Position = vec4(vertex_pos, 0.0, 1.0);
             }
-        `, `
+        `,
+            `
             precision mediump float;
 
             varying vec2 tex_pos;
@@ -607,18 +665,16 @@ class HeatMapRenderer {
                 float scale_pos = 1.0 - intensity;
                 gl_FragColor = texture2D(heatmap_scale, vec2(scale_pos, scale_y));
             }
-        `, [
-            'vertex_pos',
-        ], [
-            'texture',
-            'heatmap_scale',
-            'gamma',
-            'exposure',
-            'scale_y',
-            'blur_offset',
-        ]);
+        `,
+            ['vertex_pos'],
+            ['texture', 'heatmap_scale', 'gamma', 'exposure', 'scale_y', 'blur_offset'],
+        );
 
-        this.heatmap_scale_tex = loadTexture(gl, `data:image/png;base64,${window['heatmap-scale']}`, gl.TEXTURE1);
+        this.heatmap_scale_tex = loadTexture(
+            gl,
+            `data:image/png;base64,${window['heatmap-scale']}`,
+            gl.TEXTURE1,
+        );
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -643,10 +699,26 @@ class HeatMapRenderer {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, v);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, v);
 
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.sample_fb_size, this.sample_fb_size, 0, gl.RGBA, gl.FLOAT, null);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA,
+            this.sample_fb_size,
+            this.sample_fb_size,
+            0,
+            gl.RGBA,
+            gl.FLOAT,
+            null,
+        );
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.sample_fb);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.sample_tex, 0);
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,
+            gl.COLOR_ATTACHMENT0,
+            gl.TEXTURE_2D,
+            this.sample_tex,
+            0,
+        );
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         const quad_vertices = new Float32Array([-1, -1, -1, 1, 1, 1, 1, -1]);
@@ -707,15 +779,25 @@ class HeatMapRenderer {
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.quad_buffer);
         gl.enableVertexAttribArray(this.heat_program.attribs.vertex_pos);
-        gl.vertexAttribPointer(this.heat_program.attribs.vertex_pos, 2, gl.FLOAT, false, byteCount(F32, 2), 0);
+        gl.vertexAttribPointer(
+            this.heat_program.attribs.vertex_pos,
+            2,
+            gl.FLOAT,
+            false,
+            byteCount(F32, 2),
+            0,
+        );
         inst_ext.vertexAttribDivisorANGLE(this.heat_program.attribs.vertex_pos, 0);
 
         gl.uniform1f(this.heat_program.uniforms.gamma, config.tonemapping.gamma);
         gl.uniform1f(this.heat_program.uniforms.exposure, config.tonemapping.exposure);
         gl.uniform1f(this.heat_program.uniforms.scale_y, config.scale_y);
-        gl.uniform2f(this.heat_program.uniforms.blur_offset, config.blur_offset.x, config.blur_offset.y);
+        gl.uniform2f(
+            this.heat_program.uniforms.blur_offset,
+            config.blur_offset.x,
+            config.blur_offset.y,
+        );
 
         gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
     }
-
 }

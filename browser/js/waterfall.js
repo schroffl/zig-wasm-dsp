@@ -1,5 +1,4 @@
 class WaterfallPane extends CanvasPane {
-
     constructor(sample_rate, bin_count) {
         super();
 
@@ -31,19 +30,25 @@ class WaterfallPane extends CanvasPane {
                 const multiplier = 0.01;
 
                 this.config.rotation.x = ref.x + diffX * multiplier;
-                this.config.rotation.y = clamp(ref.y - diffY * multiplier, -Math.PI / 2, Math.PI / 2);
+                this.config.rotation.y = clamp(
+                    ref.y - diffY * multiplier,
+                    -Math.PI / 2,
+                    Math.PI / 2,
+                );
             },
         });
     }
 
     glSetup() {
-        const gl = this.gl = this.canvas.getContext('webgl', {
+        const gl = (this.gl = this.canvas.getContext('webgl', {
             premultipliedAlpha: false,
-        });
+        }));
 
         const bin_count = this.bin_count;
 
-        this.waterfall_program = webglProgram(gl, `
+        this.waterfall_program = webglProgram(
+            gl,
+            `
             precision highp float;
 
             attribute vec3 a_position;
@@ -70,7 +75,8 @@ class WaterfallPane extends CanvasPane {
                 gl_PointSize = 2.0;
                 gl_Position = proj_matrix * vec4(pos, 1.0);
             }
-        `, `
+        `,
+            `
             precision highp float;
 
             varying float volume, frequency;
@@ -79,16 +85,16 @@ class WaterfallPane extends CanvasPane {
             void main() {
                 gl_FragColor = texture2D(heat_scale, vec2(1.0 - volume, 0.0));
             }
-        `, [
-            'a_position',
-            'a_normal',
-        ], [
-            'proj_matrix',
-            'db_bounds',
-            'heat_scale',
-        ]);
+        `,
+            ['a_position', 'a_normal'],
+            ['proj_matrix', 'db_bounds', 'heat_scale'],
+        );
 
-        this.heatmap_scale_tex = loadTexture(gl, `data:image/png;base64,${window['heatmap-scale']}`, gl.TEXTURE0);
+        this.heatmap_scale_tex = loadTexture(
+            gl,
+            `data:image/png;base64,${window['heatmap-scale']}`,
+            gl.TEXTURE0,
+        );
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -121,7 +127,13 @@ class WaterfallPane extends CanvasPane {
             // One approach would be to have a lower mesh resolution for higher
             // frequencies. For those parts we could take the average volume of
             // the surrounding bins.
-            const log_x = mapValueLog(this.mesh_width - 1 - (i % this.mesh_width), 0, this.mesh_width - 1, p, 1 + p);
+            const log_x = mapValueLog(
+                this.mesh_width - 1 - (i % this.mesh_width),
+                0,
+                this.mesh_width - 1,
+                p,
+                1 + p,
+            );
             const x = (1.0 - log_x - p) * 2 - 1;
 
             this.mesh[i * this.vertex_size] = x;
@@ -165,7 +177,6 @@ class WaterfallPane extends CanvasPane {
         const gl = this.gl;
         gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
     }
-
 
     update(fft_data) {
         const mesh_width = this.mesh_width;
@@ -218,16 +229,21 @@ class WaterfallPane extends CanvasPane {
                 Matrix.perspective(70, gl.drawingBufferWidth / gl.drawingBufferHeight, 0.0001, 30),
             ]);
         } else {
-            matrix = Matrix.multiplyMany([
-                Matrix.identity(),
-            ]);
+            matrix = Matrix.multiplyMany([Matrix.identity()]);
         }
 
         gl.uniformMatrix4fv(waterfall_program.uniforms.proj_matrix, false, matrix);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.mesh_buffer);
         gl.enableVertexAttribArray(waterfall_program.attribs.a_position);
-        gl.vertexAttribPointer(waterfall_program.attribs.a_position, 3, gl.FLOAT, false, byteCount(F32, this.vertex_size), 0);
+        gl.vertexAttribPointer(
+            waterfall_program.attribs.a_position,
+            3,
+            gl.FLOAT,
+            false,
+            byteCount(F32, this.vertex_size),
+            0,
+        );
 
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, this.heatmap_scale_tex);
@@ -235,7 +251,5 @@ class WaterfallPane extends CanvasPane {
 
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.index_buffer);
         gl.drawElements(gl.TRIANGLES, this.index_count, gl.UNSIGNED_SHORT, 0);
-
     }
-
 }
